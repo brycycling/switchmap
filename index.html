@@ -77,7 +77,7 @@ header#top{height:50px;flex:0 0 50px;display:flex;align-items:center;gap:10px;pa
 #stageWrap{position:relative;flex:1;min-height:0;overflow:hidden;background:#e9eae6}
 #stage{width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
 #stage.place{cursor:crosshair}
-#stage.link,#stage.paint{cursor:pointer}
+#stage.link,#stage.paint,#stage.test{cursor:pointer}
 #stage.floors{cursor:crosshair}
 #stage.panning{cursor:grabbing}
 .dev{cursor:pointer}
@@ -216,6 +216,7 @@ kbd{font:11px var(--sans);border:1px solid var(--line2);border-bottom-width:2px;
           <button data-act="mode" data-m="select" title="Select / move (V)">Select</button>
           <button data-act="mode" data-m="link" title="Link switches to what they control (L)">Link control</button>
           <button data-act="mode" data-m="paint" title="Click devices to assign a circuit (C)">Circuit paint</button>
+          <button data-act="mode" data-m="test" title="Flip switches and breakers to see what turns on (T)">Test</button>
           <button data-act="mode" data-m="floors" title="Draw or edit floor regions">Floors</button>
         </div>
         <label class="muted" style="display:flex;align-items:center;gap:5px">Colour by
@@ -233,7 +234,7 @@ kbd{font:11px var(--sans);border:1px solid var(--line2);border-bottom-width:2px;
         <button class="iconbtn" data-act="redo" title="Redo (Ctrl+Shift+Z)">↷</button>
       </div>
       <div id="stageWrap">
-        <svg id="stage" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="fclip"><rect id="fclipRect"/></clipPath></defs><g id="vp"><rect id="paper" fill="#fff"/><image id="planImg" preserveAspectRatio="none"/><g id="gFloors"></g><g id="gLinks"></g><g id="gDevs"></g><rect id="marquee" class="hidden" fill="rgba(37,87,214,.08)" stroke="#2557d6" stroke-dasharray="4 3"/></g></svg>
+        <svg id="stage" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="fclip"><rect id="fclipRect"/></clipPath><radialGradient id="glowG"><stop offset="0" stop-color="#fff3b0" stop-opacity=".95"/><stop offset=".35" stop-color="#ffd25a" stop-opacity=".55"/><stop offset="1" stop-color="#ffb52e" stop-opacity="0"/></radialGradient></defs><g id="vp"><rect id="paper" fill="#fff"/><image id="planImg" preserveAspectRatio="none"/><g id="gFloors"></g><g id="gGlow"></g><g id="gLinks"></g><g id="gDevs"></g><rect id="marquee" class="hidden" fill="rgba(37,87,214,.08)" stroke="#2557d6" stroke-dasharray="4 3"/></g></svg>
         <div id="hint"></div>
         <div id="zoomCtl"><button data-act="zoomIn" title="Zoom in">+</button><button data-act="zoomOut" title="Zoom out">−</button><button data-act="fit" title="Fit floor (0)" style="font-size:12px">⤢</button></div>
       </div>
@@ -608,7 +609,7 @@ function sym(d,col,opt={}){
     else if(k==='pot'){s+=`<circle r="9" fill="#fff" ${st}/><circle r="4.2" fill="${col}"/>`}
     else if(k==='pend'){s+=`<circle r="10" fill="#fff" ${st}/>`+T('P',{size:11,fill:col})}
     else if(k==='sconce'){s+=`<path d="M-10,3 A10,10 0 0 1 10,3 Z" fill="#fff" ${st}/><line x1="-13" y1="4.5" x2="13" y2="4.5" stroke="${col}" stroke-width="3"/>`}
-    else if(k==='fan'||k==='fanl'){s+=`<circle r="12" fill="#fff" ${st}/>`;[0,120,240].forEach(a=>{s+=`<ellipse cx="0" cy="-6" rx="2.8" ry="5.6" fill="${col}" fill-opacity=".75" transform="rotate(${a})"/>`});s+=k==='fanl'?`<circle r="3.2" fill="#fff" stroke="${col}" stroke-width="1.6"/>`:`<circle r="1.8" fill="${col}"/>`}
+    else if(k==='fan'||k==='fanl'){s+=`<circle r="12" fill="#fff" ${st}/>`;s+='<g>';[0,120,240].forEach(a=>{s+=`<ellipse cx="0" cy="-6" rx="2.8" ry="5.6" fill="${col}" fill-opacity=".75" transform="rotate(${a})"/>`});if(opt.spin)s+=`<animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="${opt.spin}s" repeatCount="indefinite"/>`;s+='</g>';s+=k==='fanl'?`<circle r="3.2" fill="#fff" stroke="${col}" stroke-width="1.6"/>`:`<circle r="1.8" fill="${col}"/>`}
     else if(k==='ucab'){s+=`<rect x="-15" y="-4.5" width="30" height="9" fill="#fff" ${st}/><rect x="-12" y="-1.6" width="24" height="3.2" fill="${col}" fill-opacity=".6"/>`}
     else if(k==='exh'){s+=`<rect x="-10.5" y="-10.5" width="21" height="21" fill="#fff" ${st}/>`+T('EF',{size:8,fill:col})}
     else if(k==='track'){s+=`<line x1="-15" y1="0" x2="15" y2="0" stroke="${col}" stroke-width="3"/>`;[-10,0,10].forEach(x=>s+=`<circle cx="${x}" cy="0" r="3.4" fill="#fff" stroke="${col}" stroke-width="1.8"/>`)}
@@ -663,8 +664,8 @@ function renderStage(){
   if(fm){cr.setAttribute('x',0);cr.setAttribute('y',0);cr.setAttribute('width',S.imgW);cr.setAttribute('height',S.imgH)}
   else{cr.setAttribute('x',f.x);cr.setAttribute('y',f.y);cr.setAttribute('width',f.w);cr.setAttribute('height',f.h)}
   img.setAttribute('clip-path','url(#fclip)');$('#paper').setAttribute('clip-path','url(#fclip)');
-  svg().className.baseVal=({place:'place',link:'link',paint:'paint',floors:'floors'})[S.mode]||'';
-  renderFloorRects();renderLinks();renderDevs();renderHint();
+  svg().className.baseVal=({place:'place',link:'link',paint:'paint',floors:'floors',test:'test'})[S.mode]||'';
+  renderFloorRects();renderGlow();renderLinks();renderDevs();renderHint();
 }
 function renderFloorRects(){
   const g=$('#gFloors');
@@ -684,6 +685,7 @@ function linkPath(a,b,i,k){
 }
 function renderLinks(){
   const g=$('#gLinks');
+  if(S.mode==='test'){const f=S.test?.focus;g.innerHTML=f&&S.devs.has(f)?linksSvg(S.floorId,new Set([f]),new Set([f])):'';return}
   if(S.mode==='floors'||S.showLinks==='none'){g.innerHTML='';return}
   g.innerHTML=linksSvg(S.floorId,S.showLinks==='sel'?S.sel:null,S.sel);
 }
@@ -712,6 +714,7 @@ function linksSvg(floorId,only,hi,k=symScale()){
 function renderDevs(){
   const g=$('#gDevs');
   if(S.mode==='floors'){g.innerHTML='';return}
+  if(S.mode==='test'){g.innerHTML=testDevsSvg();renderGlow();return}
   const k=symScale();let out='';
   S.devs.forEach(d=>{
     if(d.floor!==S.floorId)return;
@@ -729,9 +732,137 @@ function renderHint(){
   if(!S.proj.floors.length||S.mode==='floors')t='Drag a box around each floor. Drag a box to move it; use the blue corner to resize. Then press <b>Done</b> in the Floors panel.';
   else if(S.mode==='place')t=`Click to place: <b>${esc(S.place.n)}</b>. Drag to pan. <kbd>Esc</kbd> to stop.`;
   else if(S.mode==='link'){const a=S.devs.get(S.anchor);t=a?`<b>${esc(dname(a))}</b> picked. Click the lights or outlets it controls (click again to unlink). Clicking another switch makes it control the same loads, for 3-way or 4-way setups. <kbd>Esc</kbd> to finish.`:'Click a switch, then click what it controls.'}
+  else if(S.mode==='test')t='<b>Test mode.</b> Click switches to flip them. Click a light or outlet to see what controls it. <kbd>T</kbd> or <kbd>Esc</kbd> to exit.';
   else if(S.mode==='paint'){const c=S.circuitById(S.paintC);t=c?`Click devices to assign <b>${esc(circuitName(c.id))}</b>. Click again to clear. <kbd>Esc</kbd> to finish.`:'Pick a circuit in the Circuits panel first.'}
   else t='Pick a device on the left, then click the plan to place it. <kbd>Shift</kbd>+drag to box-select. Scroll to zoom.';
   h.innerHTML=t;
+}
+
+/* ================= test mode ================= */
+const LIGHTS=new Set(['ceil','pot','pend','sconce','fanl','ucab','ext','track']);
+function tInit(){if(!S.test)S.test={sw:{},lvl:{},brk:{},timers:{},focus:null,dark:true}}
+function brkOn(cid){return !cid||!S.test||S.test.brk[cid]!==false}
+function activeCtl(d){return controllersOf(d.id).filter(s=>s.status!=='remove')}
+function groupValid(by){
+  if(by.some(s=>s.smart?.on&&!['aux','remote'].includes(s.p.config)))return true;
+  const w=wiredSwitches(by),n=w.length;if(n<=1)return true;
+  const c3=w.filter(s=>s.p.config==='3way').length,c4=w.filter(s=>s.p.config==='4way').length;
+  return n===2?c3===2:(c3===2&&c4===n-2);
+}
+function loadState(d){
+  if(d.status==='remove')return {on:false,level:0,gone:true};
+  if(!brkOn(d.circuit))return {on:false,level:0,dead:true};
+  const by=activeCtl(d);
+  if(!by.length)return {on:true,level:1,unswitched:true};
+  const valid=groupValid(by);
+  const on=valid?by.reduce((a,s)=>a!==!!S.test.sw[s.id],false):by.every(s=>!!S.test.sw[s.id]);
+  let level=1;by.forEach(s=>{if(['dimmer','fan'].includes(s.p.kind))level*=(S.test.lvl[s.id]??100)/100});
+  return {on:on&&level>0,level:on?level:0,invalid:!valid,by};
+}
+function recState(d){
+  if(d.status==='remove')return 'gone';
+  if(!brkOn(d.circuit))return 'dead';
+  if(!d.p||!d.p.controlled||d.p.controlled==='none')return 'hot';
+  const st=loadState(d);if(st.unswitched||st.on)return 'hot';
+  return d.p.controlled==='full'?'off':'half';
+}
+function swLabel(s){const on=!!S.test.sw[s.id];if(['keypad','remote'].includes(s.p.kind)||s.p.config==='remote')return on?'Pressed (on)':'Off';if(['3way','4way'].includes(s.p.config))return on?'Flipped':'Starting position';return on?'On':'Off'}
+function testClick(d){
+  tInit();
+  if(isSwitch(d)){
+    if(d.status==='remove')return toast(`${d.tag} is marked for removal`);
+    const now=!S.test.sw[d.id];S.test.sw[d.id]=now;
+    clearTimeout(S.test.timers[d.id]);
+    if(now&&['timer','occupancy'].includes(d.p.kind)){
+      const sec=d.p.kind==='timer'?15:10;
+      S.test.timers[d.id]=setTimeout(()=>{S.test.sw[d.id]=false;if(S.mode==='test'){renderDevs();renderSide()}},sec*1000);
+      toast(d.p.kind==='timer'?`${d.tag} timer: turns off in ${sec} s`:`${d.tag} sensed motion: turns off after ${sec} s`,2200);
+    }
+    if(!(d.controls||[]).length)toast(`${d.tag} isn’t linked to anything yet`,1800);
+    S.test.focus=d.id;
+  }else S.test.focus=S.test.focus===d.id?null:d.id;
+  renderLinks();renderDevs();renderSide();
+}
+function renderGlow(){
+  const g=$('#gGlow');if(!g)return;
+  if(S.mode!=='test'||!curFloor()){g.innerHTML='';return}
+  const f=curFloor(),k=symScale();let out='';
+  if(S.test.dark)out+=`<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" fill="#0b1224" fill-opacity=".6" style="pointer-events:none"/>`;
+  S.devs.forEach(d=>{
+    if(d.floor!==S.floorId||!LIGHTS.has(d.type))return;
+    const st=loadState(d);if(!st.on)return;
+    const r=k*(d.type==='pot'?48:d.type==='ext'?70:62)*(.45+.55*st.level),op=.3+.7*st.level;
+    out+=d.type==='ucab'||d.type==='track'?`<ellipse cx="${d.x}" cy="${d.y}" rx="${r*1.4}" ry="${r*.8}" fill="url(#glowG)" opacity="${op}" style="pointer-events:none"/>`
+      :`<circle cx="${d.x}" cy="${d.y}" r="${r}" fill="url(#glowG)" opacity="${op}" style="pointer-events:none"/>`;
+  });
+  g.innerHTML=out;
+}
+function testDevsSvg(){
+  const k=symScale();let out='';const foc=S.devs.get(S.test.focus);
+  const hi=new Set();if(foc){hi.add(foc.id);if(isSwitch(foc))(foc.controls||[]).forEach(i=>hi.add(i));else activeCtl(foc).forEach(s=>hi.add(s.id))}
+  S.devs.forEach(d=>{
+    if(d.floor!==S.floorId)return;
+    const c=TYPES[d.type].cat;let op=1,extra='',spin=0,fill=null;
+    if(c==='light'){
+      const st=loadState(d);
+      if(st.gone||st.dead)op=.35;
+      else if(st.on){fill=d.type==='fan'?'#e0f2fe':(d.type==='exh'?'#bae6fd':'#ffe27a');if(d.type==='fan'||d.type==='fanl')spin=(2.4-1.8*st.level).toFixed(2)}
+      if(st.invalid)extra+=`<circle cx="11" cy="11" r="4.5" fill="#f59e0b" stroke="#fff" stroke-width="1.4"/>`+T('!',{x:11,y:11,size:7,fill:'#fff'});
+    }else if(c==='recep'){
+      const rs=recState(d);
+      if(rs==='gone'||rs==='dead')op=.35;
+      const dot={hot:'#22c55e',half:'#f59e0b',off:'#94a3b8'}[rs];
+      if(dot)extra+=`<circle cx="-11" cy="11" r="4.4" fill="${dot}" stroke="#fff" stroke-width="1.4"/>`;
+    }else if(c==='switch'){
+      if(d.status==='remove')op=.35;
+      const on=!!S.test.sw[d.id];
+      if(on)fill='#bbf7d0';
+      extra+=`<rect x="-15" y="13" width="10" height="5" rx="2.5" fill="${on?'#16a34a':'#94a3b8'}" stroke="#fff" stroke-width="1"/><circle cx="${on?-7.5:-12.5}" cy="15.5" r="2.2" fill="#fff"/>`;
+    }else{
+      if(!brkOn(d.circuit))op=.35;
+    }
+    let inner=sym(d,colorFor(d),{tag:S.showTags,spin});
+    if(fill)inner=inner.replace(/fill="#fff"/g,`fill="${fill}"`);
+    if(hi.has(d.id))inner=`<circle r="19" fill="rgba(255,255,255,.25)" stroke="${d.id===S.test.focus?'#2557d6':'#8b2fc9'}" stroke-width="2.2"/>`+inner;
+    out+=`<g class="dev" data-id="${d.id}" opacity="${op}" transform="translate(${d.x},${d.y}) scale(${k})">${inner}${extra}</g>`;
+  });
+  return out;
+}
+function testHtml(){
+  tInit();
+  const fl=[...S.devs.values()].filter(d=>d.floor===S.floorId&&d.status!=='remove');
+  const lights=fl.filter(d=>LIGHTS.has(d.type));const lit=lights.filter(d=>loadState(d).on);
+  const unsw=lights.filter(d=>!activeCtl(d).length&&brkOn(d.circuit));
+  const recs=fl.filter(d=>TYPES[d.type].cat==='recep');const hot=recs.filter(d=>recState(d)==='hot').length;
+  const dims=fl.filter(d=>isSwitch(d)&&['dimmer','fan'].includes(d.p.kind));
+  const bad=fl.filter(d=>!isSwitch(d)&&activeCtl(d).length>1&&!groupValid(activeCtl(d)));
+  const foc=S.devs.get(S.test.focus);
+  const cs=(S.proj.circuits||[]).slice().sort(cSort);
+  const cnt={};S.devs.forEach(d=>{if(d.circuit)cnt[d.circuit]=(cnt[d.circuit]||0)+1});
+  const offN=cs.filter(c=>!brkOn(c.id)).length;
+  let h=`<div class="sec"><h5>Test mode <button class="btn sm" data-act="mode" data-m="select">Exit</button></h5>
+    <div class="note">Click a switch to flip it. Lights glow and fans spin when they’d be on. Click a light or outlet to see what controls it. Turn breakers off below to see what loses power. Nothing here changes your project.</div>
+    <div class="kpis" style="margin:8px 0 6px"><div class="kpi" style="min-width:0;flex:1"><b>${lit.length} / ${lights.length}</b><span>Lights on, this floor</span></div><div class="kpi" style="min-width:0;flex:1"><b>${hot} / ${recs.length}</b><span>Outlets with power</span></div></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn sm" data-act="testAllOff">All switches off</button><button class="btn sm" data-act="testReset">Reset</button><label class="chk" style="margin:0 0 0 auto"><input type="checkbox" data-tdark ${S.test.dark?'checked':''}> Dark house</label></div>
+    ${unsw.length?`<div class="note" style="margin-top:8px">${unsw.map(d=>d.tag).join(', ')} ${unsw.length>1?'have':'has'} no switch linked, so ${unsw.length>1?'they’re':'it’s'} shown as always on.</div>`:''}</div>`;
+  if(foc){
+    if(isSwitch(foc)){
+      const loads=(foc.controls||[]).map(i=>S.devs.get(i)).filter(Boolean);
+      h+=`<div class="sec"><h5>${esc(dname(foc))}</h5><div style="font-size:12.5px;margin-bottom:6px">${esc(typeLabel(foc))}: <b>${esc(swLabel(foc))}</b></div>
+        ${loads.length?loads.map(l=>{const on=TYPES[l.type].cat==='recep'?recState(l)==='hot':loadState(l).on;return `<span class="pill" style="padding-right:8px"><span class="sw" style="background:${on?'#facc15':'#cbd5e1'};border-radius:50%"></span> ${esc(dname(l))}${l.floor!==foc.floor?' ('+esc(floorName(l.floor))+')':''}</span>`}).join(''):'<div class="muted" style="font-size:12px">Not linked to anything.</div>'}</div>`;
+    }else{
+      const by=activeCtl(foc),cat=TYPES[foc.type].cat;
+      const st=cat==='recep'?({hot:'Has power',half:'Switched half off',off:'Switched off',dead:'No power: breaker off',gone:'Marked for removal'})[recState(foc)]:(()=>{const s=loadState(foc);return s.gone?'Marked for removal':s.dead?'No power: breaker off':s.on?(s.level<1?`On at ${Math.round(s.level*100)}%`:'On'):'Off'})();
+      h+=`<div class="sec"><h5>${esc(dname(foc))}</h5><div style="font-size:12.5px;margin-bottom:6px">${esc(typeLabel(foc))}: <b>${esc(st)}</b>${foc.circuit?` · breaker ${esc(circuitName(foc.circuit))}`:''}</div>
+        ${by.length?`<div class="muted" style="font-size:12px;margin-bottom:4px">Controlled by (click to flip):</div>${by.map(s=>`<button class="pill" data-act="testFlip" data-id="${s.id}" style="cursor:pointer;padding-right:8px"><span class="sw" style="background:${S.test.sw[s.id]?'#16a34a':'#94a3b8'};border-radius:50%"></span> ${esc(s.tag)} · ${esc(cfgLabel(s.p.config))}${s.floor!==foc.floor?' ('+esc(floorName(s.floor))+')':''}</button>`).join('')}`:'<div class="muted" style="font-size:12px">No switch linked.</div>'}
+        ${by.length>1&&!groupValid(by)?`<div class="note warn">These switches aren’t set up as a 3-way/4-way group, so the test treats them as wired in series: every one has to be on.</div>`:''}</div>`;
+    }
+  }
+  if(dims.length)h+=`<div class="sec"><h5>Dimmers &amp; fan speeds</h5>${dims.map(s=>{const v=S.test.lvl[s.id]??100;return `<label class="fld"><span>${esc(dname(s))} <b>${v}%</b></span><input type="range" min="0" max="100" step="5" value="${v}" data-tl="${s.id}"></label>`}).join('')}</div>`;
+  if(bad.length)h+=`<div class="sec"><h5>Won’t behave as expected</h5>${bad.map(d=>`<div class="issue" data-act="testFocus" data-id="${d.id}"><span class="lv warn">CHECK</span><span>${esc(dname(d))}: ${activeCtl(d).length} switches, not all set as 3-way/4-way. Tested as series wiring.</span></div>`).join('')}</div>`;
+  h+=`<div class="sec"><h5>Breakers${offN?` · ${offN} off`:''} <span><button class="btn sm" data-act="testBrk" data-on="1">All on</button> <button class="btn sm" data-act="testBrk" data-on="0">All off</button></span></h5>
+    ${cs.length?cs.map(c=>`<label class="chk" style="margin-bottom:5px"><input type="checkbox" data-tb="${c.id}" ${brkOn(c.id)?'checked':''}><span class="sw" style="background:${circuitColor(c.id)}"></span> ${esc(circuitName(c.id))} <span class="muted">(${cnt[c.id]||0})</span></label>`).join(''):'<div class="muted" style="font-size:12px">No circuits yet. Add breakers in the Circuits panel to test them here.</div>'}</div>`;
+  return h;
 }
 
 /* ================= stage interaction ================= */
@@ -768,6 +899,7 @@ function onDown(e){
   }
   if(devEl){
     const id=devEl.dataset.id,d=S.devs.get(id);
+    if(S.mode==='test'){drag={kind:'click',...base};testClick(d);return}
     if(S.mode==='link'){drag={kind:'click',...base};linkClick(d);return}
     if(S.mode==='paint'){drag={kind:'click',...base};paintClick(d);return}
     if(e.shiftKey){if(S.sel.has(id))S.sel.delete(id);else S.sel.add(id)}
@@ -839,6 +971,7 @@ function onUp(e){
       pushUndo();const d=newDevice(S.place.t,S.place.pre,p.x,p.y);S.devs.set(d.id,d);markDev(d.id);
       S.sel=new Set([d.id]);renderDevs();renderLinks();if(S.side!=='props')S.side='props';renderSide();updateIssueBadge();
     }else if(S.mode==='link'){S.anchor=null;renderDevs();renderHint()}
+    else if(S.mode==='test'){if(S.test&&S.test.focus){S.test.focus=null;renderLinks();renderDevs();renderSide()}}
     else if(S.mode==='select'){if(S.sel.size){S.sel.clear();renderDevs();renderLinks();renderSide()}}
   }
 }
@@ -873,6 +1006,8 @@ function setMode(m){
   const was=S.mode;S.mode=m;
   if(m!=='place')S.place=null;
   if(m!=='link')S.anchor=null;
+  if(m==='test'){tInit();S.sel.clear()}
+  $('#sideTabs').classList.toggle('hidden',m==='test');
   $$('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===m||(m==='place'&&b.dataset.m==='select')));
   renderPalette();
   if(m==='floors'){S.side='floors';fit()}
@@ -906,6 +1041,7 @@ function updateRooms(){
 function renderSide(){
   $$('#sideTabs button').forEach(b=>b.classList.toggle('on',b.dataset.s===S.side));
   const b=$('#sideBody');
+  if(S.mode==='test'){b.innerHTML=testHtml();return}
   if(S.side==='props')b.innerHTML=propsHtml();
   else if(S.side==='circuits')b.innerHTML=circuitsHtml();
   else if(S.side==='issues')b.innerHTML=issuesHtml();
@@ -1079,6 +1215,9 @@ function bindSide(){
   b.addEventListener('focusin',()=>armed=true);
   b.addEventListener('input',e=>{
     const el=e.target;
+    if(el.dataset.tl){S.test.lvl[el.dataset.tl]=+el.value;const o=el.closest('.fld')?.querySelector('b');if(o)o.textContent=el.value+'%';renderDevs();return}
+    if(el.dataset.tb){S.test.brk[el.dataset.tb]=el.checked;renderDevs();renderSide();return}
+    if(el.dataset.tdark!==undefined){S.test.dark=el.checked;renderGlow();return}
     if(el.dataset.f){
       const f=el.dataset.f;let v=el.type==='checkbox'?el.checked:el.value;
       if(f.startsWith('sticky.')){S.sticky[f.slice(7)]=v;return}
@@ -1584,6 +1723,11 @@ async function flushNow(){if(S.proj&&(S.dirty.devs.size||S.dirty.del.size||S.dir
 const ACT={
   goHome:()=>showHome(),
   sample:()=>openSample(),
+  testAllOff:()=>{Object.keys(S.test.sw).forEach(k=>S.test.sw[k]=false);renderDevs();renderSide()},
+  testReset:()=>{Object.values(S.test.timers).forEach(clearTimeout);S.test={...S.test,sw:{},lvl:{},brk:{},timers:{},focus:null};renderLinks();renderDevs();renderSide()},
+  testBrk:(b)=>{const on=b.dataset.on==='1';(S.proj.circuits||[]).forEach(c=>S.test.brk[c.id]=on);renderDevs();renderSide()},
+  testFlip:(b)=>{const d=S.devs.get(b.dataset.id);if(!d)return;const keep=S.test.focus;testClick(d);S.test.focus=keep;renderLinks();renderDevs();renderSide()},
+  testFocus:(b)=>{S.test.focus=b.dataset.id;renderLinks();renderDevs();renderSide()},
   newProject:()=>newProjectModal(false),
   open:(b,e)=>{if(e.target.closest('[data-act="delProject"]'))return;openProject(b.dataset.id)},
   delProject:async(b,e)=>{e.stopPropagation();if(await confirmBox('This deletes the project, its devices and circuits. This can’t be undone.')){try{await deleteProject(b.dataset.id);toast('Deleted')}catch(err){toast('Delete failed: '+(err.message||err.code))}showHome()}},
@@ -1665,6 +1809,7 @@ document.addEventListener('keydown',e=>{
   if(e.key===' '&&!isTyping(e)){spaceDown=true;if(e.target===document.body)e.preventDefault()}
   if(!S.proj||S.page!=='plan'||isTyping(e)||!$('#modalBg').classList.contains('hidden'))return;
   const mod=e.ctrlKey||e.metaKey;
+  if(S.mode==='test'){const k0=e.key.toLowerCase();if(e.key==='Escape'||k0==='t'){setMode('select')}else if(k0==='0')fit();else if(k0==='+'||k0==='=')ACT.zoomIn();else if(k0==='-')ACT.zoomOut();return}
   if(mod&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();return}
   if(mod&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return}
   if(mod&&e.key.toLowerCase()==='d'){e.preventDefault();duplicateSel();return}
@@ -1673,7 +1818,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){if(S.mode!=='select'&&S.mode!=='floors')setMode('select');else if(S.sel.size){S.sel.clear();renderDevs();renderLinks();renderSide()}return}
   if(e.key==='Delete'||e.key==='Backspace'){if(S.mode==='floors'&&S.floorSel){ACT.floorDel({dataset:{id:S.floorSel}});return}if(S.sel.size){e.preventDefault();ACT.delSel()}return}
   const k=e.key.toLowerCase();
-  if(k==='v')setMode('select');else if(k==='l')setMode('link');else if(k==='c')setMode('paint');else if(k==='0')fit();
+  if(k==='v')setMode('select');else if(k==='t')setMode('test');else if(k==='l')setMode('link');else if(k==='c')setMode('paint');else if(k==='0')fit();
   else if(k==='+'||k==='=')ACT.zoomIn();else if(k==='-')ACT.zoomOut();
   else if(e.key.startsWith('Arrow')&&S.sel.size&&S.canWrite){
     e.preventDefault();const st=(e.shiftKey?10:1)*Math.max(1,S.imgW/1500);const dx={ArrowLeft:-st,ArrowRight:st}[e.key]||0,dy={ArrowUp:-st,ArrowDown:st}[e.key]||0;

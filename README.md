@@ -11,6 +11,7 @@ A single-file browser app for mapping electrical receptacles, switches, lights a
 - Edit each device's room, label, status (existing / new / relocate / remove), circuit, switched half of a receptacle, GFCI protection chain, and smart details (role, protocol, brand, hub, scenes, neutral).
 - **Link control** mode connects switches to the loads they control. Clicking a second switch shares the loads for 3-way and 4-way setups.
 - **Circuit paint** mode is for mapping a panel breaker by breaker.
+- **Test mode** dims the house so you can flip switches and see which lights glow, which fans spin and which outlets have power. 3-way and 4-way groups toggle from any location, and dimmers and fan speeds have sliders. Timers and occupancy sensors switch themselves off after a few seconds. Turning breakers off shows what loses power. Switch groups that aren't set up correctly are tested as series wiring and flagged. Nothing in test mode changes the project.
 - **Checks** flags switch configurations that don't match the number of control locations, switched receptacles with no switch, and wet-location receptacles with no GFCI. These are planning hints, not code compliance.
 - Colour the plan by type, status, circuit or smart; adjust symbol size; undo and redo.
 - Outputs: annotated plan PNG (one floor or all floors), device schedule CSV, breaker directory (CSV and a printable panel card), smart home list CSV, a full printable HTML report, and a JSON backup that can be imported again.
@@ -23,4 +24,4 @@ When it's hosted as a Claude artifact, the page uses the platform's `db`, `asset
 
 ## Keyboard
 
-`V` select · `L` link · `C` circuit paint · `Del` delete · `Ctrl+D` duplicate · `Ctrl+Z` / `Ctrl+Shift+Z` undo / redo · arrow keys nudge (Shift for larger steps) · `0` fit · `Esc` exit mode · hold Space to pan
+`V` select · `T` test mode · `L` link · `C` circuit paint · `Del` delete · `Ctrl+D` duplicate · `Ctrl+Z` / `Ctrl+Shift+Z` undo / redo · arrow keys nudge (Shift for larger steps) · `0` fit · `Esc` exit mode · hold Space to pan
