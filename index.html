@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Outlet &amp; Switch Mapper</title>
+<style>
+:root{
+  --ink:#1c2330; --ink2:#4b5565; --ink3:#8a93a3; --line:#e3e5ea; --line2:#d3d7de;
+  --bg:#f5f5f2; --panel:#ffffff; --accent:#2557d6; --accent-weak:#e8eefc;
+  --warn:#b45309; --warn-bg:#fef3c7; --err:#b91c1c; --err-bg:#fee2e2; --ok:#15803d; --info-bg:#eef2f7;
+  --r:8px; --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.4 var(--sans)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+#app{display:flex;flex-direction:column;height:100vh}
+header#top{height:50px;flex:0 0 50px;display:flex;align-items:center;gap:10px;padding:0 12px;background:#fff;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;cursor:pointer}
+.brand svg{flex:0 0 auto}
+#projName{border:1px solid transparent;background:transparent;padding:5px 8px;border-radius:6px;font-weight:600;min-width:80px;max-width:280px}
+#projName:hover{border-color:var(--line)} #projName:focus{border-color:var(--accent);outline:none;background:#fff}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:7px;overflow:hidden;background:#fff}
+.seg button{border:0;background:transparent;padding:5px 10px;border-right:1px solid var(--line);white-space:nowrap}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--ink);color:#fff}
+.spacer{flex:1}
+#saveStatus{font-size:12px;color:var(--ink3);white-space:nowrap}
+#saveStatus.err{color:var(--err)}
+.btn{border:1px solid var(--line2);background:#fff;padding:5px 10px;border-radius:7px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--ink3)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.pri:hover{filter:brightness(1.07)}
+.btn.danger{color:var(--err)}
+.btn.sm{padding:3px 8px;font-size:12px}
+.btn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.iconbtn{border:1px solid transparent;background:transparent;border-radius:6px;padding:3px 6px;color:var(--ink2)}
+.iconbtn:hover{border-color:var(--line2);background:#fff}
+.menu{position:relative}
+.menu .dd{position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--line2);border-radius:8px;box-shadow:0 8px 24px rgba(20,30,50,.12);min-width:230px;padding:4px;z-index:50}
+.menu .dd button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:7px 10px;border-radius:5px}
+.menu .dd button:hover{background:var(--bg)}
+.menu .dd hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.menu .dd .hint{font-size:11px;color:var(--ink3);padding:2px 10px 6px}
+
+/* home */
+#home{flex:1;overflow:auto;padding:28px}
+.homewrap{max-width:980px;margin:0 auto}
+.homewrap h1{font-size:22px;margin:0 0 4px;letter-spacing:-.02em}
+.homewrap p.sub{color:var(--ink2);margin:0 0 20px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column}
+.card:hover{border-color:var(--ink3)}
+.card .thumb{height:130px;background:#fafafa center/contain no-repeat;border-bottom:1px solid var(--line)}
+.card .meta{padding:10px 12px}
+.card .meta b{display:block;margin-bottom:2px}
+.card .meta span{color:var(--ink3);font-size:12px}
+.card.new{align-items:center;justify-content:center;min-height:190px;border-style:dashed;color:var(--accent);font-weight:600;gap:6px}
+.banner{padding:8px 12px;border-radius:8px;background:var(--info-bg);color:var(--ink2);margin-bottom:16px;font-size:12.5px}
+.banner.warn{background:var(--warn-bg);color:#7c4a03}
+
+/* plan */
+#planView{flex:1;display:grid;grid-template-columns:212px 1fr 330px;min-height:0}
+#palette{background:#fff;border-right:1px solid var(--line);overflow:auto;padding:8px 8px 20px}
+.pcat{margin-bottom:6px}
+.pcat h4{margin:8px 4px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);display:flex;align-items:center;gap:6px}
+.pcat h4 i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.pitem{display:flex;align-items:center;gap:8px;width:100%;border:1px solid transparent;background:transparent;border-radius:6px;padding:3px 6px;text-align:left}
+.pitem:hover{background:var(--bg)}
+.pitem.on{border-color:var(--accent);background:var(--accent-weak)}
+.pitem svg{flex:0 0 26px}
+#stageCol{display:flex;flex-direction:column;min-width:0;min-height:0}
+#toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:7px 10px;background:#fff;border-bottom:1px solid var(--line)}
+#floorTabs button{max-width:150px;overflow:hidden;text-overflow:ellipsis}
+#stageWrap{position:relative;flex:1;min-height:0;overflow:hidden;background:#e9eae6}
+#stage{width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
+#stage.place{cursor:crosshair}
+#stage.link,#stage.paint{cursor:pointer}
+#stage.floors{cursor:crosshair}
+#stage.panning{cursor:grabbing}
+.dev{cursor:pointer}
+#hint{position:absolute;left:10px;bottom:10px;background:rgba(28,35,48,.88);color:#fff;padding:6px 10px;border-radius:7px;font-size:12px;max-width:70%;pointer-events:none}
+#zoomCtl{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:4px}
+#zoomCtl button{width:30px;height:30px;border:1px solid var(--line2);background:#fff;border-radius:6px;font-size:15px}
+#side{background:#fff;border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+#sideTabs{display:flex;border-bottom:1px solid var(--line)}
+#sideTabs button{flex:1;border:0;background:transparent;padding:9px 4px;border-bottom:2px solid transparent;color:var(--ink2)}
+#sideTabs button.on{border-bottom-color:var(--ink);color:var(--ink);font-weight:600}
+#sideTabs .badge{display:inline-block;min-width:16px;padding:0 4px;border-radius:8px;background:var(--warn-bg);color:var(--warn);font-size:10.5px;margin-left:3px}
+#sideBody{flex:1;overflow:auto;padding:12px}
+.sec{border-top:1px solid var(--line);padding-top:10px;margin-top:12px}
+.sec:first-child{border-top:0;margin-top:0;padding-top:0}
+.sec h5{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);display:flex;justify-content:space-between;align-items:center}
+.fld{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.fld>span{font-size:11.5px;color:var(--ink2)}
+.fld input[type=text],.fld input:not([type]),.fld input[type=number],.fld select,.fld textarea{border:1px solid var(--line2);border-radius:6px;padding:5px 7px;background:#fff;width:100%}
+.fld textarea{min-height:56px;resize:vertical}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-weak)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.chk{display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12.5px}
+.devhead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.devhead .tag{font-weight:700;font-size:15px}
+.devhead .tname{color:var(--ink2);font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line2);border-radius:12px;padding:1px 4px 1px 8px;margin:0 4px 4px 0;background:#fff;font-size:12px}
+.pill button{border:0;background:transparent;color:var(--ink3);padding:0 3px;font-size:13px;line-height:1}
+.pill button:hover{color:var(--err)}
+.pill.click{cursor:pointer}
+.note{font-size:12px;color:var(--ink2);background:var(--info-bg);border-radius:6px;padding:6px 8px;margin:4px 0 8px}
+.note.warn{background:var(--warn-bg);color:#7c4a03}
+.muted{color:var(--ink3)}
+.issue{display:flex;gap:8px;padding:7px 8px;border-radius:7px;margin-bottom:6px;cursor:pointer;border:1px solid var(--line)}
+.issue:hover{border-color:var(--ink3)}
+.issue .lv{flex:0 0 auto;font-size:10.5px;font-weight:700;border-radius:4px;padding:1px 5px;height:fit-content;margin-top:1px}
+.issue .lv.warn{background:var(--warn-bg);color:var(--warn)}
+.issue .lv.info{background:var(--info-bg);color:var(--ink2)}
+table.ct{width:100%;border-collapse:collapse;font-size:12px}
+table.ct td,table.ct th{padding:3px 3px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+table.ct input,table.ct select{width:100%;border:1px solid transparent;background:transparent;padding:3px 4px;border-radius:4px}
+table.ct input:hover,table.ct select:hover{border-color:var(--line2)}
+table.ct input:focus,table.ct select:focus{border-color:var(--accent);outline:none;background:#fff}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block;vertical-align:middle}
+.floorItem{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.floorItem input{flex:1;border:1px solid var(--line2);border-radius:6px;padding:5px 7px}
+.floorItem.on input{border-color:var(--accent)}
+
+/* reports */
+#reportView{flex:1;overflow:auto;padding:18px 22px}
+.rhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}
+.rhead h2{margin:0 12px 0 0;font-size:18px;letter-spacing:-.01em}
+.rhead select,.rhead input{border:1px solid var(--line2);border-radius:6px;padding:5px 7px;background:#fff}
+table.rt{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:12.5px}
+table.rt th{background:#fafaf8;text-align:left;font-weight:600;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0}
+table.rt td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.rt tr:hover td{background:#fbfbf9}
+table.rt tr.click{cursor:pointer}
+.stat{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600}
+.st-existing{background:#eef0f3;color:#334155}.st-new{background:#dcfce7;color:#166534}.st-relocate{background:#ffedd5;color:#9a3412}.st-remove{background:#fee2e2;color:#991b1b}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.bcard{background:#fff;border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.bcard h3{margin:0 0 4px;font-size:14px;display:flex;align-items:center;gap:8px}
+.bcard .brk{font-size:11.5px;color:var(--ink2);margin-bottom:6px}
+.bcard .sum{font-size:12.5px;margin-bottom:6px}
+.bcard ul{margin:0;padding-left:16px;font-size:12px;color:var(--ink2)}
+.kpis{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 12px;min-width:120px}
+.kpi b{display:block;font-size:18px}
+.kpi span{font-size:11.5px;color:var(--ink3)}
+
+/* modal */
+#modalBg{position:fixed;inset:0;background:rgba(20,26,38,.42);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+.modal{background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 18px 50px rgba(0,0,0,.25)}
+.modal.wide{max-width:960px}
+.modal .mh{padding:14px 16px 6px;font-weight:700;font-size:15px}
+.modal .mb{padding:6px 16px 10px}
+.modal .mf{padding:10px 16px 14px;display:flex;justify-content:flex-end;gap:8px}
+.drop{border:2px dashed var(--line2);border-radius:10px;padding:22px;text-align:center;color:var(--ink2);cursor:pointer}
+.drop.over{border-color:var(--accent);background:var(--accent-weak)}
+#toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:8px;z-index:200;font-size:12.5px;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+kbd{font:11px var(--sans);border:1px solid var(--line2);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff;color:var(--ink2)}
+
+@media (max-width:980px){
+  #planView{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}
+  #palette{border-right:0;border-bottom:1px solid var(--line);display:flex;overflow-x:auto;gap:8px;padding:6px;max-height:none}
+  .pcat{display:flex;align-items:center;gap:2px;margin:0}
+  .pcat h4{writing-mode:vertical-rl;transform:rotate(180deg);margin:0 2px}
+  .pitem{width:auto;white-space:nowrap}
+  #side{border-left:0;border-top:1px solid var(--line);max-height:42vh}
+  header#top .seg.views button{padding:5px 7px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div class="brand" data-act="goHome" title="All projects">
+      <svg width="22" height="22" viewBox="-12 -12 24 24"><rect x="-11" y="-11" width="22" height="22" rx="5" fill="#1c2330"/><circle r="6" fill="none" stroke="#fff" stroke-width="1.8"/><line x1="-2.2" y1="-3" x2="-2.2" y2="3" stroke="#fff" stroke-width="1.8"/><line x1="2.2" y1="-3" x2="2.2" y2="3" stroke="#fff" stroke-width="1.8"/></svg>
+      <span>Outlet &amp; Switch Mapper</span>
+    </div>
+    <input id="projName" class="hidden" aria-label="Project name">
+    <div class="seg views hidden" id="viewTabs">
+      <button data-act="page" data-p="plan" class="on">Plan</button>
+      <button data-act="page" data-p="schedule">Schedule</button>
+      <button data-act="page" data-p="breakers">Breakers</button>
+      <button data-act="page" data-p="smart">Smart home</button>
+    </div>
+    <div class="spacer"></div>
+    <span id="saveStatus"></span>
+    <div class="menu hidden" id="exportMenu">
+      <button class="btn" data-act="toggleMenu">Export ▾</button>
+      <div class="dd hidden">
+        <button data-act="exportPng" data-scope="floor">Annotated plan: this floor (.png)</button>
+        <button data-act="exportPng" data-scope="all">Annotated plan: every floor (.png)</button>
+        <button data-act="exportReport">Full printable report (.html)</button>
+        <hr>
+        <button data-act="csv" data-k="schedule">Device schedule (.csv)</button>
+        <button data-act="csv" data-k="breakers">Breaker directory (.csv)</button>
+        <button data-act="csv" data-k="smart">Smart home list (.csv)</button>
+        <hr>
+        <button data-act="backup">Backup project (.json)</button>
+        <div class="hint">A backup includes the floorplan image and can be imported from the projects page.</div>
+      </div>
+    </div>
+  </header>
+
+  <section id="home"></section>
+
+  <main id="planView" class="hidden">
+    <aside id="palette"></aside>
+    <div id="stageCol">
+      <div id="toolbar">
+        <div class="seg" id="floorTabs"></div>
+        <div class="seg" id="modeSeg">
+          <button data-act="mode" data-m="select" title="Select / move (V)">Select</button>
+          <button data-act="mode" data-m="link" title="Link switches to what they control (L)">Link control</button>
+          <button data-act="mode" data-m="paint" title="Click devices to assign a circuit (C)">Circuit paint</button>
+          <button data-act="mode" data-m="floors" title="Draw or edit floor regions">Floors</button>
+        </div>
+        <label class="muted" style="display:flex;align-items:center;gap:5px">Colour by
+          <select id="colorBy" class="btn sm" style="padding:3px 4px">
+            <option value="type">Device type</option><option value="status">Status</option><option value="circuit">Circuit</option><option value="smart">Smart / not</option>
+          </select></label>
+        <label class="muted" style="display:flex;align-items:center;gap:5px">Lines
+          <select id="showLinks" class="btn sm" style="padding:3px 4px">
+            <option value="all">All</option><option value="sel">Selected only</option><option value="none">Hide</option>
+          </select></label>
+        <label class="muted" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="showTags" checked> Tags</label>
+        <label class="muted" style="display:flex;align-items:center;gap:5px" title="Symbol size">Size <input type="range" id="symSize" min="0.15" max="2.5" step="0.05" value="1" style="width:70px"></label>
+        <span class="spacer"></span>
+        <button class="iconbtn" data-act="undo" title="Undo (Ctrl+Z)">↶</button>
+        <button class="iconbtn" data-act="redo" title="Redo (Ctrl+Shift+Z)">↷</button>
+      </div>
+      <div id="stageWrap">
+        <svg id="stage" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="fclip"><rect id="fclipRect"/></clipPath></defs><g id="vp"><rect id="paper" fill="#fff"/><image id="planImg" preserveAspectRatio="none"/><g id="gFloors"></g><g id="gLinks"></g><g id="gDevs"></g><rect id="marquee" class="hidden" fill="rgba(37,87,214,.08)" stroke="#2557d6" stroke-dasharray="4 3"/></g></svg>
+        <div id="hint"></div>
+        <div id="zoomCtl"><button data-act="zoomIn" title="Zoom in">+</button><button data-act="zoomOut" title="Zoom out">−</button><button data-act="fit" title="Fit floor (0)" style="font-size:12px">⤢</button></div>
+      </div>
+    </div>
+    <aside id="side">
+      <div id="sideTabs">
+        <button data-act="side" data-s="props" class="on">Properties</button>
+        <button data-act="side" data-s="circuits">Circuits</button>
+        <button data-act="side" data-s="issues">Checks<span id="issueBadge"></span></button>
+        <button data-act="side" data-s="floors">Floors</button>
+      </div>
+      <div id="sideBody"></div>
+    </aside>
+  </main>
+
+  <section id="reportView" class="hidden"></section>
+</div>
+<div id="modalBg" class="hidden"></div>
+<div id="toast" class="hidden"></div>
+<datalist id="roomList"></datalist>
+
+<script>
+"use strict";
+/* ================= helpers ================= */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clone=o=>JSON.parse(JSON.stringify(o));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let toastT; function toast(msg,ms=2600){const t=$('#toast');t.textContent=msg;t.classList.remove('hidden');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.add('hidden'),ms)}
+const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+
+/* ================= catalog ================= */
+const CATS={
+  recep:{name:'Receptacles',prefix:'R',color:'#2557d6'},
+  switch:{name:'Switches & controls',prefix:'S',color:'#8b2fc9'},
+  light:{name:'Lights & fans',prefix:'L',color:'#c46a00'},
+  other:{name:'Other',prefix:'X',color:'#0f766e'}
+};
+const TYPES={
+  dup:{cat:'recep',name:'Duplex receptacle',code:''},
+  dup20:{cat:'recep',name:'20A receptacle',code:'20'},
+  gfci:{cat:'recep',name:'GFCI receptacle',code:'GF'},
+  afgf:{cat:'recep',name:'AFCI/GFCI receptacle',code:'AG'},
+  usb:{cat:'recep',name:'USB receptacle',code:'USB'},
+  quad:{cat:'recep',name:'Quad receptacle',code:'4X'},
+  wr:{cat:'recep',name:'Exterior weatherproof receptacle',code:'WP'},
+  r240:{cat:'recep',name:'240V receptacle',code:'240'},
+  floorr:{cat:'recep',name:'Floor receptacle',code:'FL'},
+  sw:{cat:'switch',name:'Switch',code:'S'},
+  ceil:{cat:'light',name:'Ceiling fixture'},
+  pot:{cat:'light',name:'Recessed / pot light'},
+  pend:{cat:'light',name:'Pendant / chandelier'},
+  sconce:{cat:'light',name:'Wall sconce'},
+  fan:{cat:'light',name:'Ceiling fan'},
+  fanl:{cat:'light',name:'Ceiling fan with light'},
+  ucab:{cat:'light',name:'Under-cabinet / strip light'},
+  ext:{cat:'light',name:'Exterior light'},
+  exh:{cat:'light',name:'Exhaust fan'},
+  track:{cat:'light',name:'Track light'},
+  smoke:{cat:'other',name:'Smoke / CO alarm'},
+  panel:{cat:'other',name:'Electrical panel'},
+  jbox:{cat:'other',name:'Junction box'},
+  tstat:{cat:'other',name:'Thermostat'},
+  data:{cat:'other',name:'Data / network / coax'},
+  bell:{cat:'other',name:'Doorbell'},
+  ev:{cat:'other',name:'EV charger'},
+  hw:{cat:'other',name:'Hardwired appliance'},
+  hub:{cat:'other',name:'Smart hub / bridge'},
+  sensor:{cat:'other',name:'Sensor (motion/contact/leak)'}
+};
+const PALETTE=[
+  {cat:'recep',items:[
+    {t:'dup',n:'Duplex 15A'},{t:'dup20',n:'20A (T-slot)'},{t:'gfci',n:'GFCI'},{t:'afgf',n:'AFCI/GFCI'},
+    {t:'usb',n:'USB combo'},{t:'quad',n:'Quad'},{t:'wr',n:'Exterior WP'},{t:'r240',n:'240V'},{t:'floorr',n:'Floor box'},
+    {t:'dup',n:'Half-switched',pre:{p:{controlled:'top'}}},
+    {t:'dup',n:'Smart outlet',pre:{smart:'plug'}}
+  ]},
+  {cat:'switch',items:[
+    {t:'sw',n:'Single-pole',pre:{p:{config:'single'}}},
+    {t:'sw',n:'3-way',pre:{p:{config:'3way'}}},
+    {t:'sw',n:'4-way',pre:{p:{config:'4way'}}},
+    {t:'sw',n:'Dimmer',pre:{p:{kind:'dimmer'}}},
+    {t:'sw',n:'3-way dimmer',pre:{p:{config:'3way',kind:'dimmer'}}},
+    {t:'sw',n:'Fan speed control',pre:{p:{kind:'fan'}}},
+    {t:'sw',n:'Occupancy sensor',pre:{p:{kind:'occupancy'}}},
+    {t:'sw',n:'Timer',pre:{p:{kind:'timer'}}},
+    {t:'sw',n:'Smart switch',pre:{smart:'main'}},
+    {t:'sw',n:'Smart dimmer',pre:{p:{kind:'dimmer'},smart:'main'}},
+    {t:'sw',n:'Smart companion',pre:{p:{config:'aux'},smart:'aux'}},
+    {t:'sw',n:'Scene keypad',pre:{p:{kind:'keypad'},smart:'main'}},
+    {t:'sw',n:'Wireless remote',pre:{p:{config:'remote',kind:'remote'},smart:'remote'}}
+  ]},
+  {cat:'light',items:[
+    {t:'ceil',n:'Ceiling fixture'},{t:'pot',n:'Pot light'},{t:'pend',n:'Pendant'},{t:'sconce',n:'Sconce'},
+    {t:'fan',n:'Ceiling fan'},{t:'fanl',n:'Fan + light'},{t:'ucab',n:'Under-cabinet'},{t:'ext',n:'Exterior light'},
+    {t:'exh',n:'Exhaust fan'},{t:'track',n:'Track light'},{t:'ceil',n:'Smart bulb fixture',pre:{smart:'bulb'}}
+  ]},
+  {cat:'other',items:[
+    {t:'smoke',n:'Smoke / CO'},{t:'panel',n:'Panel'},{t:'jbox',n:'Junction box'},{t:'tstat',n:'Thermostat'},
+    {t:'data',n:'Data / coax'},{t:'bell',n:'Doorbell'},{t:'ev',n:'EV charger'},{t:'hw',n:'Hardwired appl.'},
+    {t:'hub',n:'Smart hub',pre:{smart:'hub'}},{t:'sensor',n:'Sensor',pre:{smart:'sensor'}}
+  ]}
+];
+const STATUS={existing:{n:'Existing',c:'#334155'},new:{n:'New',c:'#16a34a'},relocate:{n:'Relocate',c:'#ea580c'},remove:{n:'Remove',c:'#dc2626'}};
+const SW_CONFIG=[['single','Single-pole'],['3way','3-way'],['4way','4-way'],['aux','Smart companion / aux'],['remote','Wireless remote (no load wiring)']];
+const SW_KIND=[['toggle','Toggle'],['rocker','Rocker (Decora)'],['dimmer','Dimmer'],['fan','Fan speed control'],['occupancy','Occupancy / vacancy sensor'],['timer','Timer'],['keypad','Scene keypad'],['remote','Remote']];
+const CONTROLLED=[['none','Always on'],['top','Top half switched'],['bottom','Bottom half switched'],['full','Fully switched']];
+const PROTOCOLS=['','Wi-Fi','Zigbee','Z-Wave','Thread / Matter','Matter over Wi-Fi','Lutron Clear Connect','Bluetooth','Insteon','Proprietary RF','Other'];
+const ROLES=[['','—'],['main','Main (wired to load)'],['aux','Companion / aux'],['remote','Remote (battery)'],['bulb','Smart bulb'],['plug','Smart plug / outlet'],['hub','Hub / bridge'],['sensor','Sensor'],['device','Other smart device']];
+const COMMON_ROOMS=['Kitchen','Living room','Family room','Dining room','Primary bedroom','Bedroom','Bathroom','Primary bathroom','Ensuite','Powder room','Hallway','Stairs','Entry','Office','Laundry','Pantry','Closet','Walk-in closet','Storage','Garage','Basement','Exterior front','Exterior rear','Deck / patio','Mechanical room'];
+const WET=/(bath|ensuite|powder|kitchen|laundry|garage|exterior|outdoor|patio|deck|balcony|basement|bar|sink|wet|crawl|pool|hot ?tub)/i;
+const cfgLabel=v=>(SW_CONFIG.find(x=>x[0]===v)||[,v])[1];
+const kindLabel=v=>(SW_KIND.find(x=>x[0]===v)||[,v])[1];
+const roleLabel=v=>(ROLES.find(x=>x[0]===v)||[,v])[1];
+
+/* ================= state ================= */
+const S={
+  caps:{db:null,assets:null,downloads:null,user:null},
+  store:'local', canWrite:true,
+  proj:null, devs:new Map(), imgUrl:'', imgW:0, imgH:0, imgData:null,
+  floorId:null, mode:'select', place:null, sel:new Set(), anchor:null, paintC:'',
+  colorBy:'type', showLinks:'all', showTags:true,
+  view:{x:0,y:0,w:100,h:100}, sticky:{room:'',status:'existing',circuit:''},
+  undo:[], redo:[], dirty:{proj:false,devs:new Set(),del:new Set()},
+  floorSel:null, page:'plan', side:'props', sort:{k:'tag',d:1}, filt:{floor:'',cat:'',status:'',q:''}
+};
+
+/* ================= capabilities & storage ================= */
+async function cap(n){try{if(!window.claude||typeof window.claude.use!=='function')return null;return await window.claude.use(n)}catch(e){return null}}
+async function initCaps(){
+  const [db,assets,downloads,user]=await Promise.all([cap('db'),cap('assets'),cap('downloads'),cap('user')]);
+  S.caps={db,assets,downloads,user};
+  S.store=db?'cloud':(LS.set('emap:probe','1')?'local':'memory');
+  if(user){try{const w=await user.can('data.write');if(w===false)S.canWrite=false}catch(e){}}
+}
+async function retry(fn){
+  for(let i=0;;i++){
+    try{return await fn()}catch(e){
+      const c=e&&e.code;
+      if((c==='unavailable'||c==='resource_exhausted')&&i<3){await sleep(1200+Math.random()*1500*(i+1));continue}
+      throw e;
+    }
+  }
+}
+const MEM={}; // memory fallback
+function localIndex(){try{return JSON.parse(LS.get('emap:index')||'[]')}catch(e){return []}}
+function setLocalIndex(a){LS.set('emap:index',JSON.stringify(a))}
+
+async function listProjects(){
+  if(S.store==='cloud'){
+    const snap=await retry(()=>S.caps.db.collection('projects').limit(200).get());
+    return snap.docs.filter(d=>d.exists).map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  }
+  if(S.store==='local') return localIndex().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  return Object.values(MEM).map(m=>({id:m.proj.id,...m.proj}));
+}
+async function loadProject(id){
+  if(S.store==='cloud'){
+    const db=S.caps.db;
+    const p=await retry(()=>db.doc('projects/'+id).get());
+    if(!p.exists) throw new Error('Project not found');
+    const proj={id,...clone(p.data())};
+    const ds=await retry(()=>db.collection(`projects/${id}/devices`).limit(1000).get());
+    const devs=ds.docs.filter(d=>d.exists).map(d=>({...clone(d.data()),id:d.id}));
+    let imgData=null;
+    if(proj.image&&proj.image.kind==='chunks'){
+      const cs=await retry(()=>db.collection(`projects/${id}/img`).limit(100).get());
+      imgData=cs.docs.filter(d=>d.exists).sort((a,b)=>(+a.id)-(+b.id)).map(d=>d.data().s).join('');
+    }
+    return {proj,devs,imgData};
+  }
+  if(S.store==='local'){const j=LS.get('emap:p:'+id);if(!j)throw new Error('Project not found');return JSON.parse(j)}
+  return clone(MEM[id]);
+}
+function projDoc(){
+  const p=S.proj;
+  return {name:p.name||'Untitled',address:p.address||'',image:p.image||{kind:'none'},floors:p.floors||[],circuits:p.circuits||[],settings:p.settings||{},
+    deviceCount:S.devs.size,createdAt:p.createdAt||Date.now(),updatedAt:Date.now(),thumb:p.image&&p.image.kind==='asset'?p.image.url:''};
+}
+function devDoc(d){const o=clone(d);delete o.id;return o}
+let flushT=null,flushing=false,saveErr=false;
+function setStatus(s,msg){
+  const el=$('#saveStatus');el.classList.toggle('err',s==='error');
+  const txt={pending:'Unsaved changes…',saving:'Saving…',saved:S.store==='cloud'?'Saved to your account':(S.store==='local'?'Saved in this browser':'Not saved: export a backup'),error:'Save failed: '+(msg||''),ro:'View only'}[s]||'';
+  el.textContent=txt;
+}
+function schedule(){if(!S.proj)return;if(!S.canWrite){setStatus('ro');return}setStatus('pending');clearTimeout(flushT);flushT=setTimeout(flush,900)}
+function markDev(id){S.dirty.devs.add(id);S.dirty.del.delete(id);schedule()}
+function markProj(){S.dirty.proj=true;schedule()}
+async function flush(){
+  if(!S.proj||!S.canWrite)return;
+  if(flushing){schedule();return}
+  flushing=true;setStatus('saving');
+  const pid=S.proj.id;
+  const dels=[...S.dirty.del],ids=[...S.dirty.devs],pd=S.dirty.proj;
+  S.dirty.del.clear();S.dirty.devs.clear();S.dirty.proj=false;
+  try{
+    if(S.store==='cloud'){
+      const db=S.caps.db;
+      while(dels.length){const id=dels[0];await retry(()=>db.doc(`projects/${pid}/devices/${id}`).delete());dels.shift()}
+      while(ids.length){const id=ids[0];const d=S.devs.get(id);if(d)await retry(()=>db.doc(`projects/${pid}/devices/${id}`).set(devDoc(d)));ids.shift()}
+      await retry(()=>db.doc('projects/'+pid).set(projDoc()));
+    }else saveLocal();
+    saveErr=false;
+    setStatus((S.dirty.devs.size||S.dirty.del.size||S.dirty.proj)?'pending':'saved');
+  }catch(e){
+    dels.forEach(i=>S.dirty.del.add(i));ids.forEach(i=>{if(!S.dirty.del.has(i))S.dirty.devs.add(i)});if(pd)S.dirty.proj=true;
+    const c=e&&e.code;
+    if(c==='invalid_argument'&&S.store==='cloud'){S.canWrite=false;setStatus('ro');toast('You can view this project but not change it.');}
+    else{saveErr=true;setStatus('error',c==='quota_exceeded'?'storage full':(e.message||c||'unknown'));setTimeout(schedule,6000)}
+  }finally{
+    flushing=false;
+    if(!saveErr&&S.canWrite&&(S.dirty.devs.size||S.dirty.del.size||S.dirty.proj))schedule();
+  }
+}
+function saveLocal(){
+  const pd=projDoc();Object.assign(S.proj,{updatedAt:pd.updatedAt});
+  const blob={proj:{id:S.proj.id,...pd},devs:[...S.devs.values()],imgData:S.proj.image.kind==='inline'?S.imgData:null};
+  if(S.store==='local'){
+    const ok=LS.set('emap:p:'+S.proj.id,JSON.stringify(blob));
+    if(!ok){S.store='memory';toast('Browser storage is full; export a backup to keep your work.',5000)}
+    else{const ix=localIndex().filter(x=>x.id!==S.proj.id);ix.push({id:S.proj.id,name:pd.name,updatedAt:pd.updatedAt,deviceCount:pd.deviceCount,floors:pd.floors,thumb:''});setLocalIndex(ix)}
+  }
+  if(S.store==='memory')MEM[S.proj.id]=clone(blob);
+}
+async function deleteProject(id){
+  if(S.store==='cloud'){
+    const db=S.caps.db;
+    const ds=await retry(()=>db.collection(`projects/${id}/devices`).limit(1000).get());
+    for(const d of ds.docs)await retry(()=>db.doc(`projects/${id}/devices/${d.id}`).delete());
+    const cs=await retry(()=>db.collection(`projects/${id}/img`).limit(100).get());
+    for(const d of cs.docs)await retry(()=>db.doc(`projects/${id}/img/${d.id}`).delete());
+    await retry(()=>db.doc('projects/'+id).delete());
+  }else if(S.store==='local'){LS.del('emap:p:'+id);setLocalIndex(localIndex().filter(x=>x.id!==id))}
+  else delete MEM[id];
+}
+/* image storage */
+function readAsDataURL(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob)})}
+function loadImg(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Could not read that image'));i.src=src})}
+async function downscale(img,max,q=.85){
+  const s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+  const c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*s);c.height=Math.round(img.naturalHeight*s);
+  const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
+  return {url:c.toDataURL('image/jpeg',q),w:c.width,h:c.height};
+}
+async function storeImage(pid,file){
+  const src=await readAsDataURL(file);const img=await loadImg(src);
+  let w=img.naturalWidth,h=img.naturalHeight;
+  if(S.store==='cloud'&&S.caps.assets){
+    try{const a=await S.caps.assets.upload(file);return {image:{kind:'asset',url:a.url,assetId:a.id,w,h},imgUrl:a.url,imgData:null}}catch(e){console.warn('asset upload failed',e)}
+  }
+  if(S.store==='cloud'){
+    const ds=await downscale(img,2400,.8);let data=ds.url;
+    const CH=180000;const n=Math.ceil(data.length/CH);
+    if(n>40){const d2=await downscale(img,1600,.7);data=d2.url}
+    const parts=[];for(let i=0;i<data.length;i+=CH)parts.push(data.slice(i,i+CH));
+    for(let i=0;i<parts.length;i++)await retry(()=>S.caps.db.doc(`projects/${pid}/img/${i}`).set({s:parts[i]}));
+    return {image:{kind:'chunks',w,h,n:parts.length},imgUrl:data,imgData:data};
+  }
+  const ds=await downscale(img,2600,.82);
+  return {image:{kind:'inline',w,h},imgUrl:ds.url,imgData:ds.url};
+}
+
+/* ================= undo ================= */
+function snap(){return JSON.stringify({devs:[...S.devs.values()],floors:S.proj.floors,circuits:S.proj.circuits})}
+function pushUndo(){S.undo.push(snap());if(S.undo.length>80)S.undo.shift();S.redo=[]}
+function restore(js){
+  const o=JSON.parse(js);const before=new Set(S.devs.keys());
+  S.devs=new Map(o.devs.map(d=>[d.id,d]));
+  before.forEach(id=>{if(!S.devs.has(id)){S.dirty.del.add(id);S.dirty.devs.delete(id)}});
+  S.devs.forEach((d,id)=>{S.dirty.devs.add(id);S.dirty.del.delete(id)});
+  S.proj.floors=o.floors;S.proj.circuits=o.circuits;S.dirty.proj=true;
+  [...S.sel].forEach(id=>{if(!S.devs.has(id))S.sel.delete(id)});
+  if(!S.proj.floors.find(f=>f.id===S.floorId))S.floorId=S.proj.floors[0]?.id||null;
+  schedule();renderAll();
+}
+function undo(){if(!S.undo.length)return toast('Nothing to undo');S.redo.push(snap());restore(S.undo.pop())}
+function redo(){if(!S.redo.length)return toast('Nothing to redo');S.undo.push(snap());restore(S.redo.pop())}
+
+/* ================= device model ================= */
+function nextTag(cat){
+  const pre=CATS[cat].prefix;let m=0;
+  S.devs.forEach(d=>{if(d.tag&&d.tag.startsWith(pre)){const n=parseInt(d.tag.slice(pre.length),10);if(n>m)m=n}});
+  return pre+(m+1);
+}
+function defaultsFor(type){
+  const c=TYPES[type].cat;
+  if(c==='recep')return {amps:type==='dup20'?20:(type==='r240'?30:15),volts:type==='r240'?240:120,controlled:'none',tr:type!=='r240',height:'',dedicated:''};
+  if(c==='switch')return {config:'single',kind:'toggle',height:'',box:''};
+  if(c==='light')return {watts:'',bulb:'LED',dimmable:false,cct:''};
+  return {};
+}
+function newDevice(type,pre,x,y){
+  const t=TYPES[type];
+  const d={id:uid(),type,floor:S.floorId,x:Math.round(x),y:Math.round(y),tag:nextTag(t.cat),label:'',room:S.sticky.room||'',status:S.sticky.status||'existing',circuit:S.sticky.circuit||'',
+    controls:[],protectedBy:'',notes:'',p:defaultsFor(type),smart:{on:false,role:'',brand:'',model:'',protocol:'',hub:'',scenes:'',neutral:''}};
+  if(pre){if(pre.p)Object.assign(d.p,pre.p);if(pre.smart){d.smart.on=true;d.smart.role=pre.smart}}
+  if(type==='wr'){d.p.wr=true}
+  if(!S.circuitById(d.circuit))d.circuit='';
+  return d;
+}
+S.circuitById=id=>(S.proj?.circuits||[]).find(c=>c.id===id);
+function isSwitch(d){return TYPES[d.type]?.cat==='switch'}
+function controllersOf(id){const a=[];S.devs.forEach(d=>{if(isSwitch(d)&&d.controls&&d.controls.includes(id))a.push(d)});return a}
+function dname(d){return d?(d.tag+(d.label?' '+d.label:'')):'?'}
+function typeLabel(d){
+  if(isSwitch(d)){
+    const p=d.p||{};let s=cfgLabel(p.config);if(p.kind&&!['toggle','rocker'].includes(p.kind)&&!(p.kind==='remote'&&p.config==='remote'))s+=' '+kindLabel(p.kind).toLowerCase();
+    return d.smart?.on?'Smart '+s.toLowerCase()+' switch':s+' switch';
+  }
+  return (d.smart?.on&&!/smart/i.test(TYPES[d.type].name)?'Smart ':'')+TYPES[d.type].name;
+}
+function swCode(d){
+  const p=d.p||{};let sub={'3way':'3','4way':'4','aux':'A','remote':'R'}[p.config]||'';
+  sub+={'dimmer':'D','fan':'F','occupancy':'OS','timer':'T','keypad':'K'}[p.kind]||'';
+  return sub;
+}
+function detailText(d){
+  const p=d.p||{},c=TYPES[d.type].cat;
+  if(c==='recep'){let s=`${p.amps||''}A ${p.volts||''}V`;if(p.controlled&&p.controlled!=='none')s+=', '+CONTROLLED.find(x=>x[0]===p.controlled)[1].toLowerCase();if(p.tr)s+=', TR';if(p.wr)s+=', WR';if(p.dedicated)s+=', dedicated: '+p.dedicated;if(p.height)s+=`, ${p.height}" AFF`;return s}
+  if(c==='switch'){let s=cfgLabel(p.config)+' · '+kindLabel(p.kind);if(p.box)s+=', box: '+p.box;if(p.height)s+=`, ${p.height}" AFF`;return s}
+  if(c==='light'){const a=[];if(p.bulb)a.push(p.bulb);if(p.watts)a.push(p.watts+'W');if(p.cct)a.push(p.cct);if(p.dimmable)a.push('dimmable');return a.join(', ')}
+  return '';
+}
+function circuitName(id){const c=S.circuitById(id);if(!c)return '';return `${c.panel&&c.panel!=='Main'?c.panel+' ':''}#${c.num}${c.label?' · '+c.label:''}`}
+function circuitColor(id){const cs=S.proj?.circuits||[];const i=cs.findIndex(c=>c.id===id);if(i<0)return '#9aa3b2';return `hsl(${(i*137.508+200)%360} 68% 40%)`}
+function floorName(id){return S.proj?.floors.find(f=>f.id===id)?.name||'—'}
+function removeDevices(ids){
+  const set=new Set(ids);
+  S.devs.forEach(d=>{
+    let ch=false;
+    if(d.controls&&d.controls.some(x=>set.has(x))){d.controls=d.controls.filter(x=>!set.has(x));ch=true}
+    if(d.protectedBy&&set.has(d.protectedBy)){d.protectedBy='';ch=true}
+    if(ch&&!set.has(d.id))markDev(d.id);
+  });
+  ids.forEach(id=>{S.devs.delete(id);S.sel.delete(id);S.dirty.devs.delete(id);S.dirty.del.add(id)});
+  if(S.anchor&&set.has(S.anchor))S.anchor=null;
+  schedule();
+}
+
+/* ================= symbols ================= */
+function colorFor(d){
+  if(S.colorBy==='status')return STATUS[d.status]?.c||'#334155';
+  if(S.colorBy==='circuit')return d.circuit?circuitColor(d.circuit):'#9aa3b2';
+  if(S.colorBy==='smart')return d.smart?.on?'#0284c7':'#8a93a3';
+  return CATS[TYPES[d.type]?.cat||'other'].color;
+}
+function T(str,{x=0,y=0,size=9,fill='#1c2330',w=700,halo=false}={}){
+  return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" font-family="Arial,Helvetica,sans-serif" font-size="${size}" font-weight="${w}" fill="${fill}"${halo?' stroke="#fff" stroke-width="3" paint-order="stroke"':''}>${esc(str)}</text>`;
+}
+function sym(d,col,opt={}){
+  const t=TYPES[d.type]||TYPES.jbox,k=d.type,p=d.p||{},c=t.cat;let s='';
+  const st=`stroke="${col}" stroke-width="2"`;
+  if(c==='recep'){
+    if(k==='floorr')s+=`<rect x="-13.5" y="-13.5" width="27" height="27" fill="#fff" stroke="${col}" stroke-width="1.5"/>`;
+    s+=`<circle r="10" fill="#fff" stroke="${col}" stroke-width="2.2"/>`;
+    if(p.controlled==='top')s+=`<path d="M-10,0 A10,10 0 0 1 10,0 Z" fill="${col}" fill-opacity=".38"/>`;
+    if(p.controlled==='bottom')s+=`<path d="M-10,0 A10,10 0 0 0 10,0 Z" fill="${col}" fill-opacity=".38"/>`;
+    if(p.controlled==='full')s+=`<circle r="9" fill="${col}" fill-opacity=".38"/>`;
+    if(k==='r240')s+=`<line x1="-5" y1="-5" x2="-5" y2="5" ${st}/><line x1="5" y1="-5" x2="5" y2="5" ${st}/><line x1="-4" y1="5" x2="4" y2="5" ${st}/>`;
+    else{s+=`<line x1="-3.6" y1="-5.5" x2="-3.6" y2="5.5" ${st}/><line x1="3.6" y1="-5.5" x2="3.6" y2="5.5" ${st}/>`;if(k==='quad')s+=`<circle r="13.5" fill="none" stroke="${col}" stroke-width="1.2"/>`}
+    if(t.code)s+=T(t.code,{x:15,y:9,size:7.5,fill:col,halo:true});
+  }else if(c==='switch'){
+    const sub=swCode(d);
+    s+=`<rect x="-11" y="-11" width="22" height="22" rx="4" fill="#fff" ${st}/>`;
+    if(sub){s+=T('S',{x:-3.5,y:0,size:13,fill:col});s+=T(sub,{x:sub.length>1?5:4.5,y:4.5,size:sub.length>2?5.5:(sub.length>1?6.5:8),fill:col})}
+    else s+=T('S',{size:13,fill:col});
+  }else if(c==='light'){
+    if(k==='ceil'||k==='ext'){s+=`<circle r="10" fill="#fff" ${st}/><line x1="-7" y1="-7" x2="7" y2="7" ${st}/><line x1="7" y1="-7" x2="-7" y2="7" ${st}/>`;
+      if(k==='ext')[45,135,225,315].forEach(a=>{const r=a*Math.PI/180;s+=`<line x1="${12*Math.cos(r)}" y1="${12*Math.sin(r)}" x2="${16*Math.cos(r)}" y2="${16*Math.sin(r)}" ${st}/>`})}
+    else if(k==='pot'){s+=`<circle r="9" fill="#fff" ${st}/><circle r="4.2" fill="${col}"/>`}
+    else if(k==='pend'){s+=`<circle r="10" fill="#fff" ${st}/>`+T('P',{size:11,fill:col})}
+    else if(k==='sconce'){s+=`<path d="M-10,3 A10,10 0 0 1 10,3 Z" fill="#fff" ${st}/><line x1="-13" y1="4.5" x2="13" y2="4.5" stroke="${col}" stroke-width="3"/>`}
+    else if(k==='fan'||k==='fanl'){s+=`<circle r="12" fill="#fff" ${st}/>`;[0,120,240].forEach(a=>{s+=`<ellipse cx="0" cy="-6" rx="2.8" ry="5.6" fill="${col}" fill-opacity=".75" transform="rotate(${a})"/>`});s+=k==='fanl'?`<circle r="3.2" fill="#fff" stroke="${col}" stroke-width="1.6"/>`:`<circle r="1.8" fill="${col}"/>`}
+    else if(k==='ucab'){s+=`<rect x="-15" y="-4.5" width="30" height="9" fill="#fff" ${st}/><rect x="-12" y="-1.6" width="24" height="3.2" fill="${col}" fill-opacity=".6"/>`}
+    else if(k==='exh'){s+=`<rect x="-10.5" y="-10.5" width="21" height="21" fill="#fff" ${st}/>`+T('EF',{size:8,fill:col})}
+    else if(k==='track'){s+=`<line x1="-15" y1="0" x2="15" y2="0" stroke="${col}" stroke-width="3"/>`;[-10,0,10].forEach(x=>s+=`<circle cx="${x}" cy="0" r="3.4" fill="#fff" stroke="${col}" stroke-width="1.8"/>`)}
+  }else{
+    const box=(lbl,sz=8)=>`<circle r="10" fill="#fff" ${st}/>`+T(lbl,{size:sz,fill:col});
+    if(k==='smoke')s+=box('SD',7.5);
+    else if(k==='panel')s+=`<rect x="-14" y="-8" width="28" height="16" fill="${col}"/>`+T('PANEL',{size:6,fill:'#fff'});
+    else if(k==='jbox')s+=box('J',10);
+    else if(k==='tstat')s+=box('T',10);
+    else if(k==='data')s+=`<path d="M0,-11 L11,8 L-11,8 Z" fill="#fff" ${st}/>`+T('D',{y:2,size:8,fill:col});
+    else if(k==='bell')s+=box('DB',7.5);
+    else if(k==='ev')s+=`<rect x="-12" y="-9" width="24" height="18" rx="3" fill="#fff" ${st}/>`+T('EV',{size:8,fill:col});
+    else if(k==='hw')s+=`<path d="M-11,0 L-5.5,-9.5 L5.5,-9.5 L11,0 L5.5,9.5 L-5.5,9.5 Z" fill="#fff" ${st}/>`+T('HW',{size:7,fill:col});
+    else if(k==='hub')s+=`<path d="M0,-12 L12,0 L0,12 L-12,0 Z" fill="#fff" ${st}/>`+T('H',{size:9,fill:col});
+    else if(k==='sensor')s+=`<circle r="10" fill="#fff" ${st} stroke-dasharray="3 2"/>`+T('SN',{size:7.5,fill:col});
+    else s+=box('?');
+  }
+  if(d.smart?.on)s+=`<circle cx="10.5" cy="-10.5" r="4.4" fill="#0ea5e9" stroke="#fff" stroke-width="1.6"/><path d="M8.6,-10.8 a2.6,2.6 0 0 1 3.8,0" fill="none" stroke="#fff" stroke-width="1"/>`;
+  if(d.status==='new'&&S.colorBy!=='status')s+=`<circle cx="-11" cy="-11" r="4.4" fill="#16a34a" stroke="#fff" stroke-width="1.4"/><path d="M-13,-11 h4 M-11,-13 v4" stroke="#fff" stroke-width="1.4"/>`;
+  if(d.status==='relocate')s+=`<circle r="16" fill="none" stroke="#ea580c" stroke-width="1.6" stroke-dasharray="4 3"/>`;
+  if(d.status==='remove')s+=`<line x1="-13" y1="-13" x2="13" y2="13" stroke="#dc2626" stroke-width="2.4"/><line x1="13" y1="-13" x2="-13" y2="13" stroke="#dc2626" stroke-width="2.4"/>`;
+  if(opt.sel)s=`<circle r="19" fill="rgba(37,87,214,.12)" stroke="#2557d6" stroke-width="2"/>`+s;
+  if(opt.anchor)s=`<circle r="21" fill="none" stroke="#8b2fc9" stroke-width="2.5" stroke-dasharray="5 3"/>`+s;
+  if(opt.tag&&d.tag)s+=T(d.tag,{y:22,size:7.5,fill:'#1c2330',w:600,halo:true});
+  return s;
+}
+function previewSvg(it,size=26){
+  const d={type:it.t,p:Object.assign(defaultsFor(it.t),it.pre?.p||{}),smart:{on:!!it.pre?.smart},status:'existing'};
+  const keep=S.colorBy;S.colorBy='type';const out=`<svg width="${size}" height="${size}" viewBox="-17 -17 34 34">${sym(d,CATS[TYPES[it.t].cat].color)}</svg>`;S.colorBy=keep;return out;
+}
+
+/* ================= stage rendering ================= */
+const svg=()=>$('#stage');
+function symScale(){return Math.max(S.imgW,S.imgH)/1900*(S.proj?.settings?.sym||1)}
+function curFloor(){return S.proj?.floors.find(f=>f.id===S.floorId)}
+function setViewBox(){const v=S.view;svg().setAttribute('viewBox',`${v.x} ${v.y} ${v.w} ${v.h}`)}
+function fitRect(r,pad=.05){
+  const el=svg(),cw=el.clientWidth||800,ch=el.clientHeight||600,A=cw/ch;
+  let w=r.w*(1+pad*2),h=r.h*(1+pad*2);
+  if(w/h>A)h=w/A;else w=h*A;
+  S.view={x:r.x+r.w/2-w/2,y:r.y+r.h/2-h/2,w,h};setViewBox();
+}
+function fit(){const f=(S.mode==='floors'||!curFloor())?{x:0,y:0,w:S.imgW,h:S.imgH}:curFloor();if(f.w)fitRect(f)}
+function renderStage(){
+  if(!S.proj)return;
+  const img=$('#planImg');
+  if(img.getAttribute('href')!==S.imgUrl){img.setAttribute('href',S.imgUrl)}
+  img.setAttribute('width',S.imgW);img.setAttribute('height',S.imgH);
+  $('#paper').setAttribute('width',S.imgW);$('#paper').setAttribute('height',S.imgH);
+  const f=curFloor(),fm=S.mode==='floors'||!f;
+  const cr=$('#fclipRect');
+  if(fm){cr.setAttribute('x',0);cr.setAttribute('y',0);cr.setAttribute('width',S.imgW);cr.setAttribute('height',S.imgH)}
+  else{cr.setAttribute('x',f.x);cr.setAttribute('y',f.y);cr.setAttribute('width',f.w);cr.setAttribute('height',f.h)}
+  img.setAttribute('clip-path','url(#fclip)');$('#paper').setAttribute('clip-path','url(#fclip)');
+  svg().className.baseVal=({place:'place',link:'link',paint:'paint',floors:'floors'})[S.mode]||'';
+  renderFloorRects();renderLinks();renderDevs();renderHint();
+}
+function renderFloorRects(){
+  const g=$('#gFloors');
+  if(S.mode!=='floors'){g.innerHTML='';return}
+  const k=Math.max(S.imgW,S.imgH)/1000;
+  g.innerHTML=S.proj.floors.map((f,i)=>{
+    const on=f.id===S.floorSel,col=on?'#2557d6':'#8b2fc9';
+    return `<g class="frect" data-id="${f.id}"><rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" fill="${on?'rgba(37,87,214,.08)':'rgba(139,47,201,.05)'}" stroke="${col}" stroke-width="${2.5*k}" stroke-dasharray="${8*k} ${5*k}" style="cursor:move"/>
+    <text x="${f.x+8*k}" y="${f.y+18*k}" font-size="${16*k}" font-weight="700" fill="${col}" font-family="Arial" stroke="#fff" stroke-width="${4*k}" paint-order="stroke" style="pointer-events:none">${esc(f.name)}</text>
+    ${on?`<rect class="fhandle" data-id="${f.id}" x="${f.x+f.w-9*k}" y="${f.y+f.h-9*k}" width="${18*k}" height="${18*k}" fill="#2557d6" stroke="#fff" stroke-width="${2*k}" style="cursor:nwse-resize"/>`:''}</g>`;
+  }).join('');
+}
+function linkPath(a,b,i,k){
+  const dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1;
+  const bend=(.14+.05*(i%3))*L,cx=(a.x+b.x)/2-dy/L*bend,cy=(a.y+b.y)/2+dx/L*bend;
+  return `M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`;
+}
+function renderLinks(){
+  const g=$('#gLinks');
+  if(S.mode==='floors'||S.showLinks==='none'){g.innerHTML='';return}
+  g.innerHTML=linksSvg(S.floorId,S.showLinks==='sel'?S.sel:null,S.sel);
+}
+function linksSvg(floorId,only,hi,k=symScale()){
+  let out='',i=0;
+  S.devs.forEach(sw=>{
+    if(!isSwitch(sw)||sw.floor!==floorId||!sw.controls?.length)return;
+    const col=sw.circuit&&S.colorBy==='circuit'?circuitColor(sw.circuit):CATS.switch.color;
+    sw.controls.forEach(tid=>{
+      const t=S.devs.get(tid);if(!t||t.floor!==floorId)return;
+      const rel=hi&&(hi.has(sw.id)||hi.has(tid));
+      if(only&&!rel)return;
+      out+=`<path d="${linkPath(sw,t,i++,k)}" fill="none" stroke="${col}" stroke-width="${(rel?2.6:1.6)*k}" stroke-dasharray="${6*k} ${4*k}" stroke-opacity="${rel||!hi||!hi.size?.9:.38}" stroke-linecap="round"/>`;
+    });
+  });
+  // GFCI protection lines for selection
+  if(hi&&hi.size){
+    S.devs.forEach(d=>{
+      if(!d.protectedBy||d.floor!==floorId)return;const g=S.devs.get(d.protectedBy);if(!g||g.floor!==floorId)return;
+      if(!(hi.has(d.id)||hi.has(g.id)))return;
+      out+=`<line x1="${g.x}" y1="${g.y}" x2="${d.x}" y2="${d.y}" stroke="#0f766e" stroke-width="${1.6*k}" stroke-dasharray="${1.5*k} ${3.5*k}" stroke-linecap="round"/>`;
+    });
+  }
+  return out;
+}
+function renderDevs(){
+  const g=$('#gDevs');
+  if(S.mode==='floors'){g.innerHTML='';return}
+  const k=symScale();let out='';
+  S.devs.forEach(d=>{
+    if(d.floor!==S.floorId)return;
+    out+=`<g class="dev" data-id="${d.id}" transform="translate(${d.x},${d.y}) scale(${k})">${sym(d,colorFor(d),{sel:S.sel.has(d.id),anchor:S.anchor===d.id,tag:S.showTags})}</g>`;
+  });
+  g.innerHTML=out;
+}
+function moveDevNodes(ids){
+  const k=symScale();
+  ids.forEach(id=>{const d=S.devs.get(id);const n=$(`#gDevs .dev[data-id="${id}"]`);if(n&&d)n.setAttribute('transform',`translate(${d.x},${d.y}) scale(${k})`)});
+  renderLinks();
+}
+function renderHint(){
+  const h=$('#hint');let t='';
+  if(!S.proj.floors.length||S.mode==='floors')t='Drag a box around each floor. Drag a box to move it; use the blue corner to resize. Then press <b>Done</b> in the Floors panel.';
+  else if(S.mode==='place')t=`Click to place: <b>${esc(S.place.n)}</b>. Drag to pan. <kbd>Esc</kbd> to stop.`;
+  else if(S.mode==='link'){const a=S.devs.get(S.anchor);t=a?`<b>${esc(dname(a))}</b> picked. Click the lights or outlets it controls (click again to unlink). Clicking another switch makes it control the same loads, for 3-way or 4-way setups. <kbd>Esc</kbd> to finish.`:'Click a switch, then click what it controls.'}
+  else if(S.mode==='paint'){const c=S.circuitById(S.paintC);t=c?`Click devices to assign <b>${esc(circuitName(c.id))}</b>. Click again to clear. <kbd>Esc</kbd> to finish.`:'Pick a circuit in the Circuits panel first.'}
+  else t='Pick a device on the left, then click the plan to place it. <kbd>Shift</kbd>+drag to box-select. Scroll to zoom.';
+  h.innerHTML=t;
+}
+
+/* ================= stage interaction ================= */
+function pt(e){const el=svg();const m=el.getScreenCTM();if(!m)return{x:0,y:0};const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(m.inverse());return{x:p.x,y:p.y}}
+function zoomAt(f,cx,cy){
+  const v=S.view;const minW=Math.max(S.imgW,S.imgH)*.03,maxW=Math.max(S.imgW,S.imgH)*4;
+  let nw=v.w*f;if(nw<minW)f=minW/v.w;if(nw>maxW)f=maxW/v.w;
+  S.view={x:cx-(cx-v.x)*f,y:cy-(cy-v.y)*f,w:v.w*f,h:v.h*f};setViewBox();
+}
+const ptrs=new Map();let drag=null,spaceDown=false;
+function bindStage(){
+  const el=svg();
+  el.addEventListener('wheel',e=>{e.preventDefault();const p=pt(e);zoomAt(Math.exp(e.deltaY*(e.deltaMode?0.05:0.0016)),p.x,p.y)},{passive:false});
+  el.addEventListener('pointerdown',onDown);
+  el.addEventListener('pointermove',onMove);
+  el.addEventListener('pointerup',onUp);
+  el.addEventListener('pointercancel',onUp);
+  new ResizeObserver(()=>{if(!S.proj)return;const v=S.view,cw=el.clientWidth,ch=el.clientHeight;if(!cw||!ch)return;const nh=v.w*ch/cw;S.view={x:v.x,y:v.y+(v.h-nh)/2,w:v.w,h:nh};setViewBox()}).observe(el);
+}
+function onDown(e){
+  if(!S.proj)return;
+  svg().setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()];drag={kind:'pinch',d0:Math.hypot(a.x-b.x,a.y-b.y),m0:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},v0:{...S.view}};return}
+  if(ptrs.size>2)return;
+  const p=pt(e),devEl=e.target.closest('.dev'),fEl=e.target.closest('.frect'),hEl=e.target.closest('.fhandle');
+  const base={sx:e.clientX,sy:e.clientY,p0:p,moved:false,shift:e.shiftKey};
+  if(e.button===1||spaceDown){drag={kind:'pan',...base,v0:{...S.view}};svg().classList.add('panning');return}
+  if(S.mode==='floors'){
+    if(!S.canWrite){drag={kind:'pan',...base,v0:{...S.view}};return}
+    if(hEl){const f=S.proj.floors.find(x=>x.id===hEl.dataset.id);pushUndo();drag={kind:'fresize',...base,f,o:{...f}};return}
+    if(fEl){const f=S.proj.floors.find(x=>x.id===fEl.dataset.id);S.floorSel=f.id;pushUndo();drag={kind:'fmove',...base,f,o:{...f}};renderFloorRects();if(S.side==='floors')renderSide();return}
+    drag={kind:'fdraw',...base};return;
+  }
+  if(devEl){
+    const id=devEl.dataset.id,d=S.devs.get(id);
+    if(S.mode==='link'){drag={kind:'click',...base};linkClick(d);return}
+    if(S.mode==='paint'){drag={kind:'click',...base};paintClick(d);return}
+    if(e.shiftKey){if(S.sel.has(id))S.sel.delete(id);else S.sel.add(id)}
+    else if(!S.sel.has(id)){S.sel=new Set([id])}
+    const ids=[...S.sel];
+    if(S.side!=='props')S.side='props';
+    drag={kind:'devmove',...base,ids,orig:ids.map(i=>{const x=S.devs.get(i);return {id:i,x:x.x,y:x.y}})};
+    renderDevs();renderLinks();renderSide();return;
+  }
+  if(S.mode==='select'&&e.shiftKey){drag={kind:'marquee',...base};return}
+  drag={kind:'pan',...base,v0:{...S.view},maybeClick:true};
+}
+function onMove(e){
+  if(!drag)return;
+  if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(drag.kind==='pinch'){
+    if(ptrs.size<2)return;const [a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y)||1,m={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+    const el=svg(),r=el.getBoundingClientRect(),v0=drag.v0,sc=v0.w/el.clientWidth;
+    const f=drag.d0/d;const cx=v0.x+(drag.m0.x-r.left)*sc,cy=v0.y+(drag.m0.y-r.top)*sc;
+    const nw=v0.w*f,nh=v0.h*f;const nsc=nw/el.clientWidth;
+    S.view={x:cx-(drag.m0.x-r.left)*nsc-(m.x-drag.m0.x)*nsc,y:cy-(drag.m0.y-r.top)*nsc-(m.y-drag.m0.y)*nsc,w:nw,h:nh};setViewBox();return;
+  }
+  const dxs=e.clientX-drag.sx,dys=e.clientY-drag.sy;
+  if(!drag.moved&&Math.hypot(dxs,dys)<4)return;
+  if(!drag.moved){drag.moved=true;if(drag.kind==='devmove'){if(!S.canWrite){drag.kind='none';return}pushUndo()}}
+  const sc=S.view.w/svg().clientWidth;
+  if(drag.kind==='pan'){svg().classList.add('panning');S.view={...S.view,x:drag.v0.x-dxs*sc,y:drag.v0.y-dys*sc};setViewBox();return}
+  const p=pt(e);
+  if(drag.kind==='devmove'){
+    const dx=p.x-drag.p0.x,dy=p.y-drag.p0.y;
+    drag.orig.forEach(o=>{const d=S.devs.get(o.id);if(d){d.x=Math.round(o.x+dx);d.y=Math.round(o.y+dy)}});
+    moveDevNodes(drag.ids);return;
+  }
+  if(drag.kind==='marquee'||drag.kind==='fdraw'){
+    const m=$('#marquee'),x=Math.min(p.x,drag.p0.x),y=Math.min(p.y,drag.p0.y);
+    m.classList.remove('hidden');m.setAttribute('x',x);m.setAttribute('y',y);m.setAttribute('width',Math.abs(p.x-drag.p0.x));m.setAttribute('height',Math.abs(p.y-drag.p0.y));
+    m.setAttribute('stroke-width',sc*1.5);drag.rect={x,y,w:Math.abs(p.x-drag.p0.x),h:Math.abs(p.y-drag.p0.y)};return;
+  }
+  if(drag.kind==='fmove'){const f=drag.f;f.x=Math.round(drag.o.x+p.x-drag.p0.x);f.y=Math.round(drag.o.y+p.y-drag.p0.y);renderFloorRects();return}
+  if(drag.kind==='fresize'){const f=drag.f;f.w=Math.max(30,Math.round(drag.o.w+p.x-drag.p0.x));f.h=Math.max(30,Math.round(drag.o.h+p.y-drag.p0.y));renderFloorRects();return}
+}
+function onUp(e){
+  ptrs.delete(e.pointerId);
+  svg().classList.remove('panning');
+  if(!drag)return;
+  const dg=drag;
+  if(dg.kind==='pinch'){if(ptrs.size===0)drag=null;return}
+  drag=null;
+  $('#marquee').classList.add('hidden');
+  if(dg.kind==='devmove'&&dg.moved){dg.ids.forEach(markDev);renderSide();return}
+  if(dg.kind==='marquee'&&dg.rect){
+    const r=dg.rect;S.devs.forEach(d=>{if(d.floor===S.floorId&&d.x>=r.x&&d.x<=r.x+r.w&&d.y>=r.y&&d.y<=r.y+r.h)S.sel.add(d.id)});
+    renderDevs();renderLinks();renderSide();return;
+  }
+  if(dg.kind==='fdraw'){
+    if(dg.rect&&dg.rect.w>25&&dg.rect.h>25){
+      pushUndo();const n=S.proj.floors.length+1;const f={id:uid(),name:'Floor '+n,...roundRect(dg.rect)};
+      S.proj.floors.push(f);S.floorSel=f.id;markProj();renderFloorRects();S.side='floors';renderSide();renderFloorTabs();
+      setTimeout(()=>{const i=$(`.floorItem[data-id="${f.id}"] input`);if(i){i.focus();i.select()}},30);
+    }else{S.floorSel=null;renderFloorRects();renderSide()}
+    return;
+  }
+  if(dg.kind==='fmove'||dg.kind==='fresize'){if(dg.moved)markProj();else S.undo.pop();renderFloorRects();return}
+  if(dg.kind==='pan'&&!dg.moved&&dg.maybeClick){
+    if(S.mode==='place'){
+      if(!S.canWrite)return toast('View only');
+      const f=curFloor();if(!f)return;
+      const p=dg.p0;
+      pushUndo();const d=newDevice(S.place.t,S.place.pre,p.x,p.y);S.devs.set(d.id,d);markDev(d.id);
+      S.sel=new Set([d.id]);renderDevs();renderLinks();if(S.side!=='props')S.side='props';renderSide();updateIssueBadge();
+    }else if(S.mode==='link'){S.anchor=null;renderDevs();renderHint()}
+    else if(S.mode==='select'){if(S.sel.size){S.sel.clear();renderDevs();renderLinks();renderSide()}}
+  }
+}
+function roundRect(r){return {x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.w),h:Math.round(r.h)}}
+function linkClick(d){
+  if(!S.canWrite)return toast('View only');
+  const a=S.devs.get(S.anchor);
+  if(!a){S.anchor=d.id;S.sel=new Set([d.id]);renderDevs();renderLinks();renderSide();renderHint();return}
+  if(a.id===d.id){S.anchor=null;renderDevs();renderHint();return}
+  pushUndo();
+  if(isSwitch(a)&&!isSwitch(d)){toggle(a.controls,d.id);markDev(a.id);toast(a.controls.includes(d.id)?`${a.tag} now controls ${d.tag}`:`Unlinked ${d.tag} from ${a.tag}`,1500)}
+  else if(!isSwitch(a)&&isSwitch(d)){toggle(d.controls,a.id);markDev(d.id);toast(d.controls.includes(a.id)?`${d.tag} now controls ${a.tag}`:`Unlinked ${a.tag} from ${d.tag}`,1500)}
+  else if(isSwitch(a)&&isSwitch(d)){
+    const loads=a.controls||[];if(!loads.length){S.undo.pop();S.anchor=d.id;S.sel=new Set([d.id]);renderDevs();renderSide();renderHint();return}
+    const has=loads.every(x=>d.controls.includes(x));
+    if(has){d.controls=d.controls.filter(x=>!loads.includes(x));toast(`${d.tag} no longer shares ${a.tag}'s loads`,1800)}
+    else{loads.forEach(x=>{if(!d.controls.includes(x))d.controls.push(x)});toast(`${d.tag} now also controls ${loads.length} load${loads.length>1?'s':''} with ${a.tag}`,1800)}
+    markDev(d.id);
+  }else{S.undo.pop();S.anchor=d.id;S.sel=new Set([d.id]);toast('Pick a switch to link with this load',1500)}
+  renderDevs();renderLinks();renderSide();renderHint();updateIssueBadge();
+}
+function toggle(arr,v){const i=arr.indexOf(v);if(i>=0)arr.splice(i,1);else arr.push(v)}
+function paintClick(d){
+  if(!S.canWrite)return toast('View only');
+  if(!S.paintC)return toast('Choose a circuit in the Circuits panel');
+  pushUndo();d.circuit=d.circuit===S.paintC?'':S.paintC;markDev(d.id);renderDevs();renderLinks();if(S.side==='circuits')renderSide();
+}
+
+/* ================= modes / UI ================= */
+function setMode(m){
+  if(m==='floors'&&!S.proj)return;
+  const was=S.mode;S.mode=m;
+  if(m!=='place')S.place=null;
+  if(m!=='link')S.anchor=null;
+  $$('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===m||(m==='place'&&b.dataset.m==='select')));
+  renderPalette();
+  if(m==='floors'){S.side='floors';fit()}
+  else if(was==='floors'){if(!curFloor())S.floorId=S.proj.floors[0]?.id||null;fit()}
+  if(m==='paint'){S.side='circuits'}
+  renderStage();renderSide();
+}
+function renderPalette(){
+  $('#palette').innerHTML=PALETTE.map((g,gi)=>`<div class="pcat"><h4><i style="background:${CATS[g.cat].color}"></i>${CATS[g.cat].name}</h4>${g.items.map((it,ii)=>{
+    const on=S.mode==='place'&&S.place&&S.place.gi===gi&&S.place.ii===ii;
+    return `<button class="pitem${on?' on':''}" data-act="pick" data-g="${gi}" data-i="${ii}" title="${esc(TYPES[it.t].name)}">${previewSvg(it)}<span>${esc(it.n)}</span></button>`}).join('')}</div>`).join('');
+}
+function renderFloorTabs(){
+  const fl=S.proj?.floors||[];
+  $('#floorTabs').innerHTML=fl.length?fl.map(f=>{const n=[...S.devs.values()].filter(d=>d.floor===f.id).length;return `<button data-act="floor" data-id="${f.id}" class="${f.id===S.floorId&&S.mode!=='floors'?'on':''}">${esc(f.name)} <span class="muted" style="font-size:11px">${n}</span></button>`}).join(''):'<button disabled>No floors yet</button>';
+}
+function renderAll(){
+  if(!S.proj)return;
+  $('#projName').value=S.proj.name||'';
+  renderFloorTabs();renderStage();renderSide();updateIssueBadge();
+  if(S.page!=='plan')renderReport();
+  updateRooms();
+}
+function updateRooms(){
+  const set=new Set();S.devs.forEach(d=>{if(d.room)set.add(d.room)});
+  const all=[...set].sort().concat(COMMON_ROOMS.filter(r=>!set.has(r)));
+  $('#roomList').innerHTML=all.map(r=>`<option value="${esc(r)}">`).join('');
+}
+
+/* ================= side panel ================= */
+function renderSide(){
+  $$('#sideTabs button').forEach(b=>b.classList.toggle('on',b.dataset.s===S.side));
+  const b=$('#sideBody');
+  if(S.side==='props')b.innerHTML=propsHtml();
+  else if(S.side==='circuits')b.innerHTML=circuitsHtml();
+  else if(S.side==='issues')b.innerHTML=issuesHtml();
+  else b.innerHTML=floorsHtml();
+  if(!S.canWrite)$$('#sideBody input,#sideBody select,#sideBody textarea').forEach(i=>i.disabled=true);
+}
+const fT=(label,f,v,a='')=>`<label class="fld"><span>${label}</span><input data-f="${f}" value="${esc(v)}" ${a}></label>`;
+const fS=(label,f,v,opts,a='')=>`<label class="fld"><span>${label}</span><select data-f="${f}" ${a}>${opts.map(o=>{const [val,l]=Array.isArray(o)?o:[o,o||'—'];return `<option value="${esc(val)}"${String(val)===String(v??'')?' selected':''}>${esc(l)}</option>`}).join('')}</select></label>`;
+const fC=(label,f,v,a='')=>`<label class="chk"><input type="checkbox" data-f="${f}" ${v?'checked':''} ${a}> ${label}</label>`;
+function circuitOpts(){return [['','— not assigned —'],...(S.proj.circuits||[]).slice().sort(cSort).map(c=>[c.id,circuitName(c.id)])]}
+function cSort(a,b){return (a.panel||'').localeCompare(b.panel||'')||(parseFloat(a.num)||0)-(parseFloat(b.num)||0)||String(a.num).localeCompare(String(b.num))}
+function propsHtml(){
+  const ids=[...S.sel].filter(i=>S.devs.has(i));
+  if(!ids.length){
+    const s=S.sticky;
+    return `<div class="sec"><h5>Getting started</h5>
+      <div class="note">1. Pick a device on the left and click the plan to place it.<br>2. Use <b>Link control</b> to connect switches to the lights and outlets they run.<br>3. Use <b>Circuit paint</b> to map breakers.<br>Select a device to edit it.</div>
+      <div class="muted" style="font-size:12px"><kbd>V</kbd> select · <kbd>L</kbd> link · <kbd>C</kbd> circuit paint · <kbd>Del</kbd> delete · <kbd>Ctrl</kbd>+<kbd>D</kbd> duplicate · arrow keys nudge · <kbd>0</kbd> fit</div></div>
+      <div class="sec"><h5>Defaults for new devices</h5>
+      ${fT('Room','sticky.room',s.room,'list="roomList" placeholder="e.g. Kitchen"')}
+      <div class="row2">${fS('Status','sticky.status',s.status,Object.entries(STATUS).map(([k,v])=>[k,v.n]))}${fS('Circuit','sticky.circuit',s.circuit,circuitOpts())}</div>
+      <div class="muted" style="font-size:11.5px">These carry forward as you place devices and update whenever you set them on a device.</div></div>`;
+  }
+  if(ids.length>1){
+    const ds=ids.map(i=>S.devs.get(i));const same=f=>{const v=ds.map(f);return v.every(x=>x===v[0])?v[0]:''};
+    const counts={};ds.forEach(d=>{const n=TYPES[d.type].name;counts[n]=(counts[n]||0)+1});
+    return `<div class="sec"><h5>${ids.length} devices selected <button class="btn sm danger" data-act="delSel">Delete</button></h5>
+      <div class="muted" style="font-size:12px;margin-bottom:8px">${Object.entries(counts).map(([k,v])=>`${v}× ${esc(k)}`).join(', ')}</div>
+      ${fT('Room','m.room',same(d=>d.room),'list="roomList" placeholder="(mixed)"')}
+      <div class="row2">${fS('Status','m.status',same(d=>d.status),[['','(mixed)'],...Object.entries(STATUS).map(([k,v])=>[k,v.n])])}${fS('Circuit','m.circuit',same(d=>d.circuit)||'~',[['~','(mixed)'],...circuitOpts()])}</div>
+      ${fS('Smart','m.smart',same(d=>d.smart?.on?'1':'0'),[['','(mixed)'],['1','Smart'],['0','Not smart']])}
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-act="dupSel">Duplicate</button>${ds.some(isSwitch)&&ds.some(d=>!isSwitch(d))?'<button class="btn sm" data-act="linkSel">Selected switches control the other selected devices</button>':''}</div></div>`;
+  }
+  const d=S.devs.get(ids[0]),t=TYPES[d.type],c=t.cat,p=d.p||{},sm=d.smart||{};
+  const typeOpts=Object.entries(TYPES).filter(([k,v])=>v.cat===c).map(([k,v])=>[k,v.name]);
+  let h=`<div class="devhead"><svg width="40" height="40" viewBox="-20 -20 40 40">${sym(d,colorFor(d))}</svg><div><div class="tag">${esc(d.tag)}</div><div class="tname">${esc(typeLabel(d))} · ${esc(floorName(d.floor))}</div></div></div>`;
+  h+=`<div class="sec"><h5>Basics</h5>
+    <div class="row2">${fT('Tag','tag',d.tag)}${fS('Type','type',d.type,typeOpts,'data-rr="1"')}</div>
+    ${fT('Label / function','label',d.label,'placeholder="e.g. Island pendants, TV wall"')}
+    ${fT('Room','room',d.room,'list="roomList"')}
+    <div class="row2">${fS('Status','status',d.status,Object.entries(STATUS).map(([k,v])=>[k,v.n]),'data-rr="1"')}${fS('Circuit','circuit',d.circuit,circuitOpts(),'data-rr="1"')}</div>
+    ${S.proj.floors.length>1?fS('Floor','floor',d.floor,S.proj.floors.map(f=>[f.id,f.name]),'data-rr="1"'):''}</div>`;
+  if(c==='switch'){
+    h+=`<div class="sec"><h5>Switch</h5><div class="row2">${fS('Configuration','p.config',p.config,SW_CONFIG,'data-rr="1"')}${fS('Kind','p.kind',p.kind,SW_KIND,'data-rr="1"')}</div>
+      <div class="row2">${fT('Box / gang','p.box',p.box,'placeholder="e.g. 3-gang, pos 2"')}${fT('Height (in)','p.height',p.height,'inputmode="decimal"')}</div></div>`;
+    const loads=(d.controls||[]).map(i=>S.devs.get(i)).filter(Boolean);
+    h+=`<div class="sec"><h5>Controls <button class="btn sm" data-act="startLink">${S.mode==='link'&&S.anchor===d.id?'Linking…':'Pick on plan'}</button></h5>
+      ${loads.length?loads.map(l=>`<span class="pill"><span class="click" data-act="selDev" data-id="${l.id}" style="cursor:pointer">${esc(dname(l))}${l.floor!==d.floor?' ('+esc(floorName(l.floor))+')':''}</span><button data-act="unlink" data-s="${d.id}" data-l="${l.id}" title="Unlink">×</button></span>`).join(''):'<div class="muted" style="font-size:12px">Nothing linked yet.</div>'}
+      ${wiringNoteForSwitch(d)}</div>`;
+  }else{
+    const by=controllersOf(d.id);
+    h+=`<div class="sec"><h5>Controlled by <button class="btn sm" data-act="startLink">Pick on plan</button></h5>${by.length?by.map(s=>`<span class="pill"><span data-act="selDev" data-id="${s.id}" style="cursor:pointer">${esc(dname(s))} · ${esc(cfgLabel(s.p.config))}</span><button data-act="unlink" data-s="${s.id}" data-l="${d.id}" title="Unlink">×</button></span>`).join(''):'<div class="muted" style="font-size:12px">No switch: always on, or switched elsewhere.</div>'}${wiringNoteForLoad(d,by)}</div>`;
+  }
+  if(c==='recep'){
+    const gfcis=[...S.devs.values()].filter(x=>(x.type==='gfci'||x.type==='afgf')&&x.id!==d.id);
+    h+=`<div class="sec"><h5>Receptacle</h5>
+      <div class="row2">${fS('Amps','p.amps',p.amps,[15,20,30,40,50].map(a=>[a,a+' A']))}${fS('Volts','p.volts',p.volts,[[120,'120 V'],[240,'240 V'],[208,'208 V']])}</div>
+      ${fS('Switched?','p.controlled',p.controlled,CONTROLLED,'data-rr="1"')}
+      <div class="row2">${fT('Height (in)','p.height',p.height,'inputmode="decimal"')}${fT('Dedicated to','p.dedicated',p.dedicated,'placeholder="e.g. Fridge"')}</div>
+      <div style="display:flex;gap:14px">${fC('Tamper-resistant','p.tr',p.tr)}${fC('Weather-resistant','p.wr',p.wr)}</div>
+      ${d.type==='gfci'||d.type==='afgf'?protectsHtml(d):fS('GFCI protection','protectedBy',d.protectedBy,[['','None / unknown'],['breaker','GFCI breaker at panel'],...gfcis.map(g=>[g.id,'Downstream of '+dname(g)+(g.room?' ('+g.room+')':'')])],'data-rr="1"')}</div>`;
+  }
+  if(c==='light'){
+    h+=`<div class="sec"><h5>Fixture</h5><div class="row3">${fS('Bulb','p.bulb',p.bulb,['','LED','Integrated LED','Incandescent','Halogen','Fluorescent','CFL'])}${fT('Watts','p.watts',p.watts,'inputmode="decimal"')}${fT('Colour temp','p.cct',p.cct,'placeholder="2700K"')}</div>${fC('Dimmable','p.dimmable',p.dimmable)}</div>`;
+  }
+  h+=`<div class="sec"><h5>Smart</h5>${fC('Smart device','smart.on',sm.on,'data-rr="1"')}`;
+  if(sm.on){
+    h+=`<div class="row2">${fS('Role','smart.role',sm.role,ROLES)}${fS('Protocol','smart.protocol',sm.protocol,PROTOCOLS)}</div>
+      <div class="row2">${fT('Brand','smart.brand',sm.brand,'placeholder="e.g. Lutron Caséta"')}${fT('Model','smart.model',sm.model)}</div>
+      ${fT('Hub / bridge','smart.hub',sm.hub,'placeholder="e.g. Caséta bridge, Home Assistant"')}
+      ${fT('Scenes / automations','smart.scenes',sm.scenes,'placeholder="comma separated"')}
+      ${c==='switch'?fS('Neutral in box?','smart.neutral',sm.neutral,[['','Unknown'],['yes','Yes'],['no','No']]):''}`;
+  }
+  h+=`</div><div class="sec"><h5>Notes</h5><label class="fld"><textarea data-f="notes" placeholder="Wiring notes, box fill, cover plate, anything else">${esc(d.notes)}</textarea></label>
+    <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-act="dupSel">Duplicate</button><button class="btn sm" data-act="centerSel">Centre on plan</button><button class="btn sm danger" data-act="delSel">Delete</button></div></div>`;
+  return h;
+}
+function protectsHtml(g){
+  const ds=[...S.devs.values()].filter(x=>x.protectedBy===g.id);
+  return `<div class="fld"><span>Protects downstream</span><div>${ds.length?ds.map(x=>`<span class="pill" data-act="selDev" data-id="${x.id}" style="padding-right:8px;cursor:pointer">${esc(dname(x))}</span>`).join(''):'<span class="muted" style="font-size:12px">None set. On a downstream receptacle, choose this GFCI under “GFCI protection”.</span>'}</div></div>`;
+}
+function expected(n){if(n<=1)return 'single-pole';if(n===2)return 'two 3-way switches';return `two 3-way switches and ${n-2} 4-way switch${n>3?'es':''}`}
+function wiredSwitches(sws){return sws.filter(s=>!['aux','remote'].includes(s.p?.config))}
+function wiringNoteForLoad(d,by){
+  if(by.length<2)return '';
+  const w=wiredSwitches(by);const smart=by.some(s=>s.smart?.on);
+  return `<div class="note">Controlled from ${by.length} locations.${smart?' With a smart main switch, the other locations can be companions or remotes.':' With standard switches that needs '+expected(w.length)+'.'}</div>`;
+}
+function wiringNoteForSwitch(d){
+  const loads=(d.controls||[]).map(i=>S.devs.get(i)).filter(Boolean);if(!loads.length)return '';
+  const counts=loads.map(l=>wiredSwitches(controllersOf(l.id)).length);const n=Math.max(...counts);
+  const want=n<=1?'single':(n===2?'3way':'4way');
+  if(['aux','remote'].includes(d.p.config)||d.smart?.on&&n>1&&controllersOf(loads[0].id).some(s=>s.smart?.on))return '';
+  if(want==='single'&&d.p.config!=='single')return `<div class="note warn">This is the only switch for these loads, so it can be single-pole unless another location still needs to be added.</div>`;
+  if(want==='3way'&&d.p.config!=='3way')return `<div class="note warn">These loads are switched from 2 locations, so this should be a 3-way.</div>`;
+  if(want==='4way'&&!['3way','4way'].includes(d.p.config))return `<div class="note warn">${n} locations: ${expected(n)}. Set this to 3-way or 4-way.</div>`;
+  return '';
+}
+function circuitsHtml(){
+  const cs=(S.proj.circuits||[]).slice().sort(cSort);
+  const cnt={};S.devs.forEach(d=>{if(d.circuit)cnt[d.circuit]=(cnt[d.circuit]||0)+1});
+  const un=[...S.devs.values()].filter(d=>!d.circuit).length;
+  return `<div class="sec"><h5>Circuits / breakers <span><button class="btn sm" data-act="addCircuit">+ Add</button> <button class="btn sm" data-act="bulkCircuits">Add range…</button></span></h5>
+    ${cs.length?`<table class="ct"><thead><tr><th></th><th style="width:44px">#</th><th>Label</th><th style="width:56px">Amps</th><th style="width:28px"></th></tr></thead><tbody>${cs.map(c=>`<tr data-cid="${c.id}">
+      <td><button class="btn sm${S.mode==='paint'&&S.paintC===c.id?' on':''}" data-act="paintWith" data-id="${c.id}" title="Click devices on the plan to assign this circuit" style="padding:2px 5px"><span class="sw" style="background:${circuitColor(c.id)}"></span> ${cnt[c.id]||0}</button></td>
+      <td><input data-cf="num" value="${esc(c.num)}"></td><td><input data-cf="label" value="${esc(c.label)}" placeholder="e.g. Kitchen counter"></td>
+      <td><select data-cf="amps">${[15,20,30,40,50,60].map(a=>`<option${+c.amps===a?' selected':''}>${a}</option>`).join('')}</select></td>
+      <td><button class="iconbtn" data-act="circuitMore" data-id="${c.id}" title="More">⋯</button></td></tr>`).join('')}</tbody></table>`:'<div class="note">Add your panel’s breakers, then choose one and click devices on the plan (or set the circuit on each device).</div>'}
+    ${un?`<div class="muted" style="font-size:12px;margin-top:8px">${un} device${un>1?'s':''} not yet assigned to a circuit.</div>`:''}</div>
+    <div class="sec"><h5>Tip</h5><div class="muted" style="font-size:12px">To map an existing panel: turn off one breaker, walk the house, then press its count button and click everything that went dead.</div></div>`;
+}
+function analyze(){
+  const out=[];const devs=[...S.devs.values()];
+  const loadsSeen=new Set();
+  devs.forEach(d=>{
+    const by=controllersOf(d.id);
+    if(!isSwitch(d)){
+      if(by.length>=2){
+        const w=wiredSwitches(by),smart=by.some(s=>s.smart?.on&&!['aux','remote'].includes(s.p.config));
+        if(!smart){
+          const n=w.length,c3=w.filter(s=>s.p.config==='3way').length,c4=w.filter(s=>s.p.config==='4way').length;
+          const ok=n===2?c3===2:(n>2?(c3===2&&c4===n-2):true);
+          if(!ok)out.push({lv:'warn',id:d.id,msg:`${dname(d)} is switched from ${n} locations; standard wiring needs ${expected(n)} (now: ${w.map(s=>s.tag+' '+cfgLabel(s.p.config)).join(', ')}).`});
+        }
+      }
+      if(TYPES[d.type].cat==='recep'){
+        const ctl=d.p?.controlled&&d.p.controlled!=='none';
+        if(ctl&&!by.length)out.push({lv:'warn',id:d.id,msg:`${dname(d)} is marked switched, but no switch is linked to it.`});
+        if(!ctl&&by.length)out.push({lv:'warn',id:d.id,msg:`${dname(d)} is linked to ${by.map(s=>s.tag).join(', ')}; set which half is switched.`});
+        if(WET.test(d.room||'')&&!['gfci','afgf'].includes(d.type)&&!d.protectedBy&&d.p?.volts!=240)out.push({lv:'info',id:d.id,msg:`${dname(d)} is in “${d.room}”: check GFCI protection (GFCI device, upstream GFCI or GFCI breaker).`});
+      }
+    }else{
+      const p=d.p||{};
+      if(!(d.controls||[]).length&&!['keypad','remote','occupancy'].includes(p.kind)&&p.config!=='remote'&&d.status!=='remove')out.push({lv:'info',id:d.id,msg:`${dname(d)} doesn’t control anything yet. Use Link control.`});
+      else if((d.controls||[]).length&&!['aux','remote'].includes(p.config)){
+        const n=Math.max(...d.controls.map(i=>wiredSwitches(controllersOf(i)).length));
+        const smartGroup=d.controls.some(i=>controllersOf(i).some(s=>s.smart?.on));
+        if(n===1&&['3way','4way'].includes(p.config)&&!smartGroup)out.push({lv:'warn',id:d.id,msg:`${dname(d)} is a ${cfgLabel(p.config)}, but it’s the only switch for its loads. Missing partner switch?`});
+      }
+      if(d.smart?.on&&d.smart.neutral==='no')out.push({lv:'warn',id:d.id,msg:`${dname(d)}: no neutral in the box. Confirm the smart switch supports no-neutral installs.`});
+      if(p.kind==='dimmer'){const nd=(d.controls||[]).map(i=>S.devs.get(i)).filter(l=>l&&TYPES[l.type].cat==='light'&&l.p&&!l.p.dimmable&&l.p.bulb);if(nd.length)out.push({lv:'info',id:d.id,msg:`${dname(d)} is a dimmer, but ${nd.map(l=>l.tag).join(', ')} isn’t marked dimmable.`})}
+      if(p.kind==='fan'){const nf=(d.controls||[]).map(i=>S.devs.get(i)).filter(l=>l&&!['fan','fanl','exh'].includes(l.type));if(nf.length)out.push({lv:'info',id:d.id,msg:`${dname(d)} is a fan control but also runs ${nf.map(l=>l.tag).join(', ')}.`})}
+    }
+    if(d.smart?.on&&!d.smart.protocol&&!['remote'].includes(d.smart.role))out.push({lv:'info',id:d.id,msg:`${dname(d)} is smart but has no protocol set.`});
+  });
+  const un=devs.filter(d=>!d.circuit&&d.status!=='remove'&&!['data','sensor','hub','panel'].includes(d.type)&&!(d.smart?.on&&d.smart.role==='remote'));
+  if(un.length&&(S.proj.circuits||[]).length)out.push({lv:'info',id:un[0].id,msg:`${un.length} device${un.length>1?'s have':' has'} no circuit assigned (e.g. ${un.slice(0,4).map(d=>d.tag).join(', ')}).`});
+  return out;
+}
+function updateIssueBadge(){const n=analyze().filter(i=>i.lv==='warn').length;$('#issueBadge').innerHTML=n?`<span class="badge">${n}</span>`:''}
+function issuesHtml(){
+  const is=analyze();
+  return `<div class="sec"><h5>Checks (${is.length})</h5>${is.length?is.map(i=>`<div class="issue" data-act="selDev" data-id="${i.id}"><span class="lv ${i.lv}">${i.lv==='warn'?'CHECK':'NOTE'}</span><span>${esc(i.msg)}</span></div>`).join(''):'<div class="note">Nothing flagged.</div>'}
+    <div class="muted" style="font-size:11.5px;margin-top:10px">These are planning hints for switch configuration, switched outlets and GFCI protection. They don’t check code compliance; confirm with a licensed electrician and the Canadian Electrical Code / local bylaws.</div></div>`;
+}
+function floorsHtml(){
+  const fl=S.proj.floors;
+  return `<div class="sec"><h5>Floors</h5>
+    ${S.mode!=='floors'?`<div class="note">Switch to <b>Floors</b> mode to draw or adjust the box around each floor on the image.</div><button class="btn sm" data-act="mode" data-m="floors">Edit floor regions</button><br><br>`:`<div class="note">Drag on the image to draw a box around each floor. Drag a box to move it; the blue corner resizes it.</div>`}
+    ${fl.map((f,i)=>`<div class="floorItem${f.id===S.floorSel?' on':''}" data-id="${f.id}"><input data-ff="name" data-id="${f.id}" value="${esc(f.name)}"><button class="iconbtn" data-act="floorUp" data-id="${f.id}" title="Move up" ${i===0?'disabled':''}>↑</button><button class="iconbtn" data-act="floorDel" data-id="${f.id}" title="Delete floor">✕</button></div>`).join('')}
+    ${!fl.length?'<div class="muted" style="font-size:12px;margin-bottom:8px">No floors yet.</div>':''}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn sm" data-act="wholeFloor">Use whole image as one floor</button>${S.mode==='floors'?`<button class="btn sm pri" data-act="floorsDone">Done: start mapping</button>`:''}</div></div>
+    <div class="sec"><h5>Project</h5>${fT('Address / notes','proj.address',S.proj.address||'','placeholder="Optional"')}<button class="btn sm" data-act="replaceImg">Replace floorplan image…</button></div>`;
+}
+
+/* side panel inputs */
+let armed=false;
+function setPath(o,path,v){const ks=path.split('.');let x=o;for(let i=0;i<ks.length-1;i++){x[ks[i]]=x[ks[i]]||{};x=x[ks[i]]}x[ks[ks.length-1]]=v}
+function bindSide(){
+  const b=$('#sideBody');
+  b.addEventListener('focusin',()=>armed=true);
+  b.addEventListener('input',e=>{
+    const el=e.target;
+    if(el.dataset.f){
+      const f=el.dataset.f;let v=el.type==='checkbox'?el.checked:el.value;
+      if(f.startsWith('sticky.')){S.sticky[f.slice(7)]=v;return}
+      if(f==='proj.address'){S.proj.address=v;markProj();return}
+      if(!S.canWrite)return;
+      if(armed){pushUndo();armed=el.tagName==='SELECT'||el.type==='checkbox'}
+      const ids=[...S.sel];
+      if(f.startsWith('m.')){
+        const k=f.slice(2);
+        ids.forEach(id=>{const d=S.devs.get(id);if(!d)return;
+          if(k==='smart'){if(v==='')return;d.smart.on=v==='1'}
+          else if(k==='circuit'){if(v==='~')return;d.circuit=v}
+          else if(k==='status'){if(!v)return;d.status=v}
+          else d[k]=v;
+          markDev(id)});
+        if(k==='room'||k==='circuit'||k==='status')if(v!=='~'&&v!=='')S.sticky[k]=v;
+        renderDevs();renderLinks();if(el.tagName==='SELECT')renderSide();updateRooms();return;
+      }
+      const d=S.devs.get(ids[0]);if(!d)return;
+      if(f==='type'){const oc=TYPES[d.type].cat;d.type=v;d.p=Object.assign(defaultsFor(v),TYPES[v].cat===oc?d.p:{});if(v==='r240'){d.p.volts=240;d.p.amps=Math.max(30,+d.p.amps||30)}}
+      else if(f==='p.amps'||f==='p.volts')setPath(d,f,+v);
+      else setPath(d,f,v);
+      if(['room','status','circuit'].includes(f))S.sticky[f]=v;
+      if(f==='floor'){S.sel.clear()}
+      markDev(d.id);renderDevs();renderLinks();updateIssueBadge();
+      if(el.dataset.rr){renderSide();renderFloorTabs()}
+      else{const head=$('#sideBody .devhead');if(head){const sv=head.querySelector('svg');sv.innerHTML=sym(d,colorFor(d));head.querySelector('.tag').textContent=d.tag;head.querySelector('.tname').textContent=typeLabel(d)+' · '+floorName(d.floor)}}
+      if(f==='room')updateRooms();
+      return;
+    }
+    if(el.dataset.cf){
+      if(!S.canWrite)return;
+      const c=S.circuitById(el.closest('tr').dataset.cid);if(!c)return;
+      if(armed){pushUndo();armed=false}
+      c[el.dataset.cf]=el.dataset.cf==='amps'?+el.value:el.value;markProj();renderDevs();
+      return;
+    }
+    if(el.dataset.ff==='name'){
+      const f=S.proj.floors.find(x=>x.id===el.dataset.id);if(!f)return;
+      if(armed){pushUndo();armed=false}
+      f.name=el.value;markProj();renderFloorTabs();renderFloorRects();
+    }
+  });
+  b.addEventListener('focusout',e=>{armed=false;if(e.target.dataset.cf==='num'){renderSide()}});
+}
+
+/* ================= reports ================= */
+function allDevsSorted(){
+  const fo={};(S.proj.floors||[]).forEach((f,i)=>fo[f.id]=i);
+  const catO={recep:0,switch:1,light:2,other:3};
+  return [...S.devs.values()].sort((a,b)=>(fo[a.floor]??99)-(fo[b.floor]??99)||catO[TYPES[a.type].cat]-catO[TYPES[b.type].cat]||tagNum(a.tag)-tagNum(b.tag));
+}
+function tagNum(t){return parseInt(String(t).replace(/\D+/g,''),10)||0}
+function scheduleRows(){
+  return allDevsSorted().map(d=>{
+    const by=controllersOf(d.id);
+    return {id:d.id,tag:d.tag,type:typeLabel(d),label:d.label||'',floor:floorName(d.floor),room:d.room||'',status:STATUS[d.status]?.n||d.status,statusK:d.status,
+      circuit:circuitName(d.circuit),details:detailText(d),
+      control:isSwitch(d)?(d.controls||[]).map(i=>S.devs.get(i)).filter(Boolean).map(dname).join('; '):by.map(s=>s.tag).join(', '),
+      smart:d.smart?.on?[roleLabel(d.smart.role),d.smart.brand,d.smart.protocol].filter(x=>x&&x!=='—').join(' · ')||'Yes':'',
+      gfci:d.protectedBy==='breaker'?'GFCI breaker':(d.protectedBy?('via '+(S.devs.get(d.protectedBy)?.tag||'?')):''),
+      notes:d.notes||'',cat:TYPES[d.type].cat,floorId:d.floor};
+  });
+}
+const SCHED_COLS=[['tag','Tag'],['type','Type'],['label','Label / function'],['floor','Floor'],['room','Room'],['status','Status'],['circuit','Circuit'],['details','Details'],['control','Controls / controlled by'],['gfci','GFCI'],['smart','Smart'],['notes','Notes']];
+function breakerData(){
+  const cs=(S.proj.circuits||[]).slice().sort(cSort);
+  const devs=allDevsSorted();
+  const groups=cs.map(c=>({c,devs:devs.filter(d=>d.circuit===c.id)}));
+  const un=devs.filter(d=>!d.circuit);
+  return {groups,un};
+}
+function autoSummary(ds){
+  const rooms={};ds.forEach(d=>{const r=d.room||'(no room)';(rooms[r]=rooms[r]||{recep:0,switch:0,light:0,other:0,names:[]});rooms[r][TYPES[d.type].cat]++;if(TYPES[d.type].cat==='other'||d.p?.dedicated)rooms[r].names.push(d.p?.dedicated||TYPES[d.type].name)});
+  return Object.entries(rooms).map(([r,o])=>{const a=[];if(o.recep)a.push(o.recep+' outlet'+(o.recep>1?'s':''));if(o.light)a.push(o.light+' light'+(o.light>1?'s':''));if(o.switch)a.push(o.switch+' switch'+(o.switch>1?'es':''));o.names.filter((v,i,s)=>s.indexOf(v)===i).forEach(n=>a.push(n));return `${r}: ${a.join(', ')}`}).join(' · ');
+}
+function smartRows(){
+  return allDevsSorted().filter(d=>d.smart?.on).map(d=>({id:d.id,tag:d.tag,type:typeLabel(d),label:d.label||'',floor:floorName(d.floor),room:d.room||'',role:roleLabel(d.smart.role),brand:d.smart.brand||'',model:d.smart.model||'',protocol:d.smart.protocol||'',hub:d.smart.hub||'',
+    neutral:isSwitch(d)?({yes:'Yes',no:'No'}[d.smart.neutral]||'Unknown'):'',controls:isSwitch(d)?(d.controls||[]).map(i=>S.devs.get(i)).filter(Boolean).map(dname).join('; '):'',scenes:d.smart.scenes||'',status:STATUS[d.status]?.n}));
+}
+const SMART_COLS=[['tag','Tag'],['type','Device'],['label','Label'],['floor','Floor'],['room','Room'],['role','Role'],['brand','Brand'],['model','Model'],['protocol','Protocol'],['hub','Hub / bridge'],['neutral','Neutral'],['controls','Controls'],['scenes','Scenes / automations'],['status','Status']];
+function sortRows(rows){const {k,d}=S.sort;return rows.slice().sort((a,b)=>k==='tag'?0:String(a[k]||'').localeCompare(String(b[k]||''),undefined,{numeric:true})*d)}
+function renderReport(){
+  const v=$('#reportView');const pg=S.page;
+  if(pg==='schedule'){
+    const f=S.filt;let rows=scheduleRows();
+    rows=rows.filter(r=>(!f.floor||r.floorId===f.floor)&&(!f.cat||r.cat===f.cat)&&(!f.status||r.statusK===f.status)&&(!f.q||Object.values(r).join(' ').toLowerCase().includes(f.q.toLowerCase())));
+    rows=sortRows(rows);
+    const tot={};S.devs.forEach(d=>{const c=TYPES[d.type].cat;tot[c]=(tot[c]||0)+1});
+    v.innerHTML=`<div class="rhead"><h2>Device schedule</h2>
+      <select data-filt="floor"><option value="">All floors</option>${S.proj.floors.map(x=>`<option value="${x.id}"${f.floor===x.id?' selected':''}>${esc(x.name)}</option>`).join('')}</select>
+      <select data-filt="cat"><option value="">All types</option>${Object.entries(CATS).map(([k,c])=>`<option value="${k}"${f.cat===k?' selected':''}>${c.name}</option>`).join('')}</select>
+      <select data-filt="status"><option value="">Any status</option>${Object.entries(STATUS).map(([k,s])=>`<option value="${k}"${f.status===k?' selected':''}>${s.n}</option>`).join('')}</select>
+      <input data-filt="q" placeholder="Search…" value="${esc(f.q)}"><span class="spacer"></span>
+      <button class="btn" data-act="copyCsv" data-k="schedule">Copy CSV</button><button class="btn pri" data-act="csv" data-k="schedule">Download CSV</button></div>
+      <div class="kpis">${Object.entries(CATS).map(([k,c])=>`<div class="kpi"><b>${tot[k]||0}</b><span>${c.name}</span></div>`).join('')}<div class="kpi"><b>${[...S.devs.values()].filter(d=>d.status==='new').length}</b><span>New</span></div><div class="kpi"><b>${[...S.devs.values()].filter(d=>d.status==='remove').length}</b><span>To remove</span></div></div>
+      ${tableHtml(SCHED_COLS,rows,r=>r.status?`<span class="stat st-${r.statusK}">${esc(r.status)}</span>`:'')}`;
+  }else if(pg==='breakers'){
+    const {groups,un}=breakerData();
+    v.innerHTML=`<div class="rhead"><h2>Breaker directory</h2><span class="muted">${groups.length} circuits · ${un.length} unassigned devices</span><span class="spacer"></span>
+      <button class="btn" data-act="copyDir">Copy panel labels</button><button class="btn" data-act="csv" data-k="breakers">Download CSV</button><button class="btn pri" data-act="exportDir">Printable directory (.html)</button></div>
+      ${groups.length?`<div class="bgrid">${groups.map(({c,devs})=>`<div class="bcard"><h3><span class="sw" style="background:${circuitColor(c.id)}"></span>${esc((c.panel&&c.panel!=='Main'?c.panel+' ':'')+'#'+c.num)} ${esc(c.label||'')}</h3>
+        <div class="brk">${c.amps||''} A · ${c.poles==2?'2-pole':'1-pole'}${c.btype&&c.btype!=='Standard'?' · '+esc(c.btype):''} · ${devs.length} device${devs.length===1?'':'s'}</div>
+        <div class="sum">${esc(autoSummary(devs))||'<span class="muted">Nothing assigned yet</span>'}</div>
+        <ul>${devs.map(d=>`<li data-act="jump" data-id="${d.id}" style="cursor:pointer">${esc(dname(d))}: ${esc(typeLabel(d))}${d.room?', '+esc(d.room):''} <span class="muted">(${esc(floorName(d.floor))})</span></li>`).join('')}</ul></div>`).join('')}</div>`:'<div class="banner">No circuits yet. Add them in the Circuits panel on the Plan page.</div>'}
+      ${un.length?`<h3 style="margin:18px 0 8px;font-size:14px">Not yet assigned</h3><div class="bcard"><ul>${un.map(d=>`<li data-act="jump" data-id="${d.id}" style="cursor:pointer">${esc(dname(d))}: ${esc(typeLabel(d))}${d.room?', '+esc(d.room):''} (${esc(floorName(d.floor))})</li>`).join('')}</ul></div>`:''}`;
+  }else if(pg==='smart'){
+    const rows=sortRows(smartRows());
+    const by=(k)=>{const o={};rows.forEach(r=>{const v=r[k]||'(not set)';o[v]=(o[v]||0)+1});return o};
+    v.innerHTML=`<div class="rhead"><h2>Smart home devices</h2><span class="muted">${rows.length} smart devices</span><span class="spacer"></span><button class="btn" data-act="copyCsv" data-k="smart">Copy CSV</button><button class="btn pri" data-act="csv" data-k="smart">Download CSV</button></div>
+      <div class="kpis">${Object.entries(by('protocol')).map(([k,n])=>`<div class="kpi"><b>${n}</b><span>${esc(k)}</span></div>`).join('')}</div>
+      <div class="kpis">${Object.entries(by('hub')).map(([k,n])=>`<div class="kpi"><b>${n}</b><span>Hub: ${esc(k)}</span></div>`).join('')}</div>
+      ${rows.length?tableHtml(SMART_COLS,rows):'<div class="banner">No smart devices yet. Tick “Smart device” on any device, or place one from the palette (blue dot).</div>'}`;
+  }
+}
+function tableHtml(cols,rows,statusFmt){
+  return `<table class="rt"><thead><tr>${cols.map(([k,l])=>`<th data-act="sort" data-k="${k}">${l}${S.sort.k===k?(S.sort.d>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr class="click" data-act="jump" data-id="${r.id}">${cols.map(([k])=>`<td>${k==='status'&&statusFmt?statusFmt(r):esc(r[k])}</td>`).join('')}</tr>`).join('')}</tbody></table>${rows.length?'':'<div class="muted" style="padding:14px">No devices match.</div>'}`;
+}
+function csvOf(cols,rows){const q=v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};return [cols.map(c=>q(c[1])).join(','),...rows.map(r=>cols.map(c=>q(r[c[0]])).join(','))].join('\n')}
+function csvFor(k){
+  if(k==='schedule')return csvOf(SCHED_COLS,scheduleRows());
+  if(k==='smart')return csvOf(SMART_COLS,smartRows());
+  const {groups,un}=breakerData();const rows=[];
+  groups.forEach(({c,devs})=>{rows.push({panel:c.panel||'Main',num:c.num,label:c.label||'',amps:c.amps,poles:c.poles||1,btype:c.btype||'Standard',summary:autoSummary(devs),devices:devs.map(d=>`${d.tag} ${typeLabel(d)}${d.room?' ('+d.room+')':''}`).join('; ')})});
+  if(un.length)rows.push({panel:'',num:'',label:'UNASSIGNED',amps:'',poles:'',btype:'',summary:autoSummary(un),devices:un.map(d=>d.tag).join('; ')});
+  return csvOf([['panel','Panel'],['num','Breaker #'],['label','Label'],['amps','Amps'],['poles','Poles'],['btype','Breaker type'],['summary','Summary'],['devices','Devices']],rows);
+}
+function fileBase(){return (S.proj.name||'floorplan').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-').slice(0,60)||'floorplan'}
+async function saveFile(name,data,fallbackKind){
+  const dl=S.caps.downloads;
+  if(dl){try{await dl.save({filename:name,data});toast('Saved '+name);return}catch(e){if(e&&e.code==='declined')return;if(e&&e.code==='rate_limited'){toast('Another save is waiting for you to confirm.');return}console.warn(e)}}
+  // fallback
+  if(fallbackKind==='image'){const url=typeof data==='string'?data:URL.createObjectURL(data);openModal(`<div class="mh">${esc(name)}</div><div class="mb"><div class="muted" style="margin-bottom:8px">Downloads aren’t available here. Right-click (or long-press) the image to save it.</div><img src="${url}" style="max-width:100%;border:1px solid var(--line)"></div><div class="mf"><button class="btn" data-act="closeModal">Close</button></div>`,true);return}
+  const txt=typeof data==='string'?data:await data.text();
+  openModal(`<div class="mh">${esc(name)}</div><div class="mb"><div class="muted" style="margin-bottom:8px">Downloads aren’t available here. Copy the contents instead.</div><textarea id="fbText" style="width:100%;height:300px;font:12px ui-monospace,monospace">${esc(txt.length>2e6?txt.slice(0,2e6):txt)}</textarea></div><div class="mf"><button class="btn" data-act="copyFb">Copy</button><button class="btn" data-act="closeModal">Close</button></div>`,true);
+}
+async function copyText(t){try{await navigator.clipboard.writeText(t);toast('Copied to clipboard')}catch(e){saveFile('copy.txt',t)}}
+
+/* ======= image export ======= */
+async function imgDataUrl(){
+  if(S.imgUrl.startsWith('data:'))return S.imgUrl;
+  if(S._imgCache)return S._imgCache;
+  try{const r=await fetch(S.imgUrl);const b=await r.blob();S._imgCache=await readAsDataURL(b);return S._imgCache}
+  catch(e){const img=await loadImg(S.imgUrl);const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;c.getContext('2d').drawImage(img,0,0);S._imgCache=c.toDataURL('image/jpeg',.9);return S._imgCache}
+}
+function legendItems(devs){
+  const seen=new Map();
+  devs.forEach(d=>{const key=d.type+'|'+(isSwitch(d)?swCode(d):'')+'|'+(TYPES[d.type].cat==='recep'&&d.p.controlled!=='none'?'c':'');if(!seen.has(key))seen.set(key,{d:{...d,status:'existing',smart:{on:false}},label:TYPES[d.type].cat==='recep'&&d.p.controlled!=='none'?TYPES[d.type].name+' (switched)':(isSwitch(d)?typeLabel({...d,smart:{on:false}}).replace(/ switch$/,'')+' switch':TYPES[d.type].name)})});
+  return [...seen.values()].sort((a,b)=>a.label.localeCompare(b.label));
+}
+async function floorSvg(f,{width=1800}={}){
+  const k=symScale(),pad=f.w*.03;
+  const devs=[...S.devs.values()].filter(d=>d.floor===f.id);
+  const leg=legendItems(devs);
+  const W=f.w+pad*2;const sc=width/W;const q=sc/(width/1000);
+  const rowH=26/q*1.0,colW=W/3;const legRows=Math.ceil((leg.length+4)/3);
+  const titleH=46/q,legH=(legRows*rowH)+40/q;
+  const H=titleH+f.h+pad*2+legH;
+  const data=await imgDataUrl();
+  const keep=S.showTags;S.showTags=true;
+  let devSvg='';devs.forEach(d=>{devSvg+=`<g transform="translate(${d.x},${d.y}) scale(${k})">${sym(d,colorFor(d),{tag:true})}</g>`});
+  S.showTags=keep;
+  const ox=pad-f.x,oy=titleH+pad-f.y;
+  const L=(i)=>({x:(i%3)*colW+pad,y:titleH+f.h+pad*2+20/q+Math.floor(i/3)*rowH});
+  const ls=1/q*1.0;
+  let legSvg='';
+  leg.forEach((it,i)=>{const p=L(i);legSvg+=`<g transform="translate(${p.x+12*ls},${p.y})"><g transform="scale(${ls*.75})">${sym(it.d,colorFor(it.d))}</g><text x="${22*ls}" y="0" dominant-baseline="central" font-family="Arial" font-size="${12*ls}" fill="#1c2330">${esc(it.label)}</text></g>`});
+  const extra=[['smart','Smart device'],['new','New'],['remove','Remove'],['line','Switch control']];
+  extra.forEach((e,j)=>{const p=L(leg.length+j);let g='';
+    if(e[0]==='smart')g=`<circle r="4.4" fill="#0ea5e9" stroke="#fff" stroke-width="1.6"/>`;
+    if(e[0]==='new')g=`<circle r="4.4" fill="#16a34a"/><path d="M-2,0 h4 M0,-2 v4" stroke="#fff" stroke-width="1.4"/>`;
+    if(e[0]==='remove')g=`<line x1="-7" y1="-7" x2="7" y2="7" stroke="#dc2626" stroke-width="2.4"/><line x1="7" y1="-7" x2="-7" y2="7" stroke="#dc2626" stroke-width="2.4"/>`;
+    if(e[0]==='line')g=`<path d="M-12,0 H12" stroke="${CATS.switch.color}" stroke-width="2" stroke-dasharray="6 4"/>`;
+    legSvg+=`<g transform="translate(${p.x+12*ls},${p.y})"><g transform="scale(${ls*.9})">${g}</g><text x="${22*ls}" y="0" dominant-baseline="central" font-family="Arial" font-size="${12*ls}" fill="#1c2330">${esc(e[1])}</text></g>`});
+  const title=`${S.proj.name||''} · ${f.name}`;
+  const body=`<rect width="${W}" height="${H}" fill="#fff"/>
+    <text x="${pad}" y="${titleH*.55}" font-family="Arial" font-weight="700" font-size="${20/q}" fill="#1c2330">${esc(title)}</text>
+    <text x="${W-pad}" y="${titleH*.55}" text-anchor="end" font-family="Arial" font-size="${12/q}" fill="#8a93a3">${devs.length} devices · coloured by ${esc({type:'type',status:'status',circuit:'circuit',smart:'smart/not'}[S.colorBy])} · ${new Date().toLocaleDateString()}</text>
+    <svg x="${pad}" y="${titleH+pad}" width="${f.w}" height="${f.h}" viewBox="${f.x} ${f.y} ${f.w} ${f.h}" overflow="hidden"><image href="${data}" x="0" y="0" width="${S.imgW}" height="${S.imgH}" preserveAspectRatio="none"/>${linksSvg(f.id,null,null,k)}${devSvg}</svg>
+    <line x1="${pad}" x2="${W-pad}" y1="${titleH+f.h+pad*2}" y2="${titleH+f.h+pad*2}" stroke="#e3e5ea" stroke-width="${1/q}"/>${legSvg}`;
+  void ox;void oy;
+  return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(W*sc)}" height="${Math.round(H*sc)}" viewBox="0 0 ${W} ${H}">${body}</svg>`,w:Math.round(W*sc),h:Math.round(H*sc)};
+}
+async function svgToCanvas(s){
+  const img=await loadImg('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s.svg));
+  const c=document.createElement('canvas');c.width=s.w;c.height=s.h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,s.w,s.h);return c;
+}
+async function floorPng(f,width){const s=await floorSvg(f,{width});const c=await svgToCanvas(s);return c}
+async function exportPng(scope){
+  if(!S.proj.floors.length)return toast('Define a floor first');
+  toast('Rendering…',8000);
+  try{
+    let canvas;
+    if(scope==='all'){
+      const cs=[];for(const f of S.proj.floors)cs.push(await floorPng(f,1600));
+      const gap=24;const W=cs.reduce((a,c)=>a+c.width,0)+gap*(cs.length-1);const H=Math.max(...cs.map(c=>c.height));
+      canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;const x=canvas.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);let ox=0;cs.forEach(c=>{x.drawImage(c,ox,0);ox+=c.width+gap});
+    }else canvas=await floorPng(curFloor()||S.proj.floors[0],2200);
+    const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+    $('#toast').classList.add('hidden');
+    await saveFile(`${fileBase()}-${scope==='all'?'all-floors':(curFloor()?.name||'floor').replace(/\W+/g,'-')}.png`,blob,'image');
+  }catch(e){console.error(e);toast('Could not render the image: '+(e.message||e))}
+}
+function dirHtml(){
+  const {groups}=breakerData();
+  const items=groups.map(({c,devs})=>`<div class="b"><div class="n">${esc((c.panel&&c.panel!=='Main'?c.panel+' ':'')+c.num)}</div><div class="t"><b>${esc(c.label||autoSummary(devs).split(' · ')[0]||'')}</b><small>${c.amps||''}A${c.poles==2?' 2P':''}${c.btype&&c.btype!=='Standard'?' '+esc(c.btype):''} · ${esc(autoSummary(devs))}</small></div></div>`).join('');
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Panel directory · ${esc(S.proj.name)}</title><style>body{font:12px Arial,sans-serif;margin:24px;color:#111}h1{font-size:18px;margin:0 0 4px}.g{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #333}.b{display:flex;border-bottom:1px solid #999;border-right:1px solid #999;min-height:38px}.n{width:40px;font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;border-right:1px solid #999}.t{padding:4px 6px}.t small{display:block;color:#555;font-size:10px}@media print{body{margin:10mm}}</style></head><body><h1>Panel directory · ${esc(S.proj.name)}</h1><div style="color:#666;margin-bottom:10px">${esc(S.proj.address||'')} · printed ${new Date().toLocaleDateString()}</div><div class="g">${items}</div></body></html>`;
+}
+async function exportReport(){
+  toast('Building report…',10000);
+  try{
+    const imgs=[];for(const f of S.proj.floors){const c=await floorPng(f,1500);imgs.push({f,url:c.toDataURL('image/jpeg',.88)})}
+    const tbl=(cols,rows)=>`<table><thead><tr>${cols.map(c=>`<th>${c[1]}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(r[c[0]])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const {groups,un}=breakerData();
+    const br=groups.map(({c,devs})=>({n:(c.panel&&c.panel!=='Main'?c.panel+' ':'')+'#'+c.num,label:c.label||'',b:`${c.amps||''}A ${c.poles==2?'2P':'1P'} ${c.btype&&c.btype!=='Standard'?c.btype:''}`,s:autoSummary(devs),d:devs.map(d=>d.tag).join(', ')}));
+    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(S.proj.name)} · electrical map</title><style>body{font:12px Arial,sans-serif;color:#111;margin:24px}h1{font-size:20px;margin:0}h2{font-size:15px;margin:22px 0 8px;page-break-after:avoid}table{border-collapse:collapse;width:100%;font-size:10.5px}th,td{border:1px solid #ccc;padding:3px 5px;text-align:left;vertical-align:top}th{background:#f2f2f2}img{max-width:100%;border:1px solid #ddd}.pg{page-break-before:always}@media print{body{margin:8mm}}</style></head><body>
+      <h1>${esc(S.proj.name)}</h1><div style="color:#666">${esc(S.proj.address||'')} · ${S.devs.size} devices · ${new Date().toLocaleDateString()}</div>
+      ${imgs.map((x,i)=>`<div class="${i?'pg':''}"><h2>${esc(x.f.name)}</h2><img src="${x.url}"></div>`).join('')}
+      <div class="pg"><h2>Device schedule</h2>${tbl(SCHED_COLS,scheduleRows())}</div>
+      <div class="pg"><h2>Breaker directory</h2>${tbl([['n','Breaker'],['label','Label'],['b','Breaker'],['s','Summary'],['d','Devices']],br)}${un.length?`<p><b>Unassigned:</b> ${esc(un.map(d=>d.tag).join(', '))}</p>`:''}</div>
+      ${smartRows().length?`<div class="pg"><h2>Smart home devices</h2>${tbl(SMART_COLS,smartRows())}</div>`:''}
+      <div class="pg"><h2>Checks</h2><ul>${analyze().map(i=>`<li>${esc(i.msg)}</li>`).join('')||'<li>Nothing flagged.</li>'}</ul><p style="color:#777">Planning hints only; confirm with a licensed electrician and local code.</p></div></body></html>`;
+    $('#toast').classList.add('hidden');
+    await saveFile(fileBase()+'-electrical-report.html',html);
+  }catch(e){console.error(e);toast('Could not build report: '+(e.message||e))}
+}
+async function backup(){
+  toast('Preparing backup…',6000);
+  const image=await imgDataUrl().catch(()=>null);
+  const data=JSON.stringify({format:'emap-1',exported:new Date().toISOString(),proj:{...projDoc(),id:S.proj.id},devices:[...S.devs.values()],image});
+  $('#toast').classList.add('hidden');
+  await saveFile(fileBase()+'-backup.json',data);
+}
+
+/* ================= modal ================= */
+function openModal(html,wide){const bg=$('#modalBg');bg.innerHTML=`<div class="modal${wide?' wide':''}">${html}</div>`;bg.classList.remove('hidden');return bg.firstChild}
+function closeModal(){$('#modalBg').classList.add('hidden');$('#modalBg').innerHTML=''}
+function confirmBox(msg,ok='Delete'){return new Promise(res=>{const m=openModal(`<div class="mh">Are you sure?</div><div class="mb">${msg}</div><div class="mf"><button class="btn" id="cfNo">Cancel</button><button class="btn pri" id="cfYes" style="background:var(--err);border-color:var(--err)">${esc(ok)}</button></div>`);m.querySelector('#cfNo').onclick=()=>{closeModal();res(false)};m.querySelector('#cfYes').onclick=()=>{closeModal();res(true)}})}
+$('#modalBg').addEventListener('pointerdown',e=>{if(e.target.id==='modalBg')closeModal()});
+
+/* ================= home ================= */
+async function showHome(){
+  await flushNow();
+  S.proj=null;S.devs=new Map();S._imgCache=null;
+  $('#home').classList.remove('hidden');$('#planView').classList.add('hidden');$('#reportView').classList.add('hidden');
+  $('#projName').classList.add('hidden');$('#viewTabs').classList.add('hidden');$('#exportMenu').classList.add('hidden');$('#saveStatus').textContent='';
+  const h=$('#home');
+  h.innerHTML=`<div class="homewrap"><h1>Electrical floorplan projects</h1><p class="sub">Upload a floorplan image, then map receptacles, switches, lights and circuits on it.</p><div class="muted">Loading…</div></div>`;
+  let list=[];let err='';
+  try{list=await listProjects()}catch(e){err=e.message||e.code||'could not load'}
+  const banner=S.store==='cloud'?(S.canWrite?'':'<div class="banner warn">You can view these projects but not change them.</div>')
+    :S.store==='local'?'<div class="banner warn">Saving to your account isn’t available in this view, so projects are kept in this browser only. Use Export → Backup to keep a copy.</div>'
+    :'<div class="banner warn">Storage isn’t available here, so your work lasts only until you close this page. Use Export → Backup to keep it.</div>';
+  h.innerHTML=`<div class="homewrap"><h1>Electrical floorplan projects</h1><p class="sub">Upload a floorplan image, then map receptacles, switches, lights and circuits on it.</p>${banner}${err?`<div class="banner warn">Couldn’t load projects: ${esc(err)}</div>`:''}
+    <div class="cards">${S.canWrite?`<div class="card new" data-act="newProject"><span style="font-size:26px;line-height:1">+</span>New project</div>`:''}
+    ${list.map(p=>`<div class="card" data-act="open" data-id="${esc(p.id)}"><div class="thumb" style="${p.thumb?`background-image:url('${esc(p.thumb)}')`:''}"></div><div class="meta"><b>${esc(p.name||'Untitled')}</b><span>${(p.floors||[]).length} floor${(p.floors||[]).length===1?'':'s'} · ${p.deviceCount||0} devices${p.updatedAt?' · '+new Date(p.updatedAt).toLocaleDateString():''}</span>
+      ${S.canWrite?`<div style="margin-top:6px"><button class="btn sm danger" data-act="delProject" data-id="${esc(p.id)}">Delete</button></div>`:''}</div></div>`).join('')}</div>
+    ${S.canWrite?`<p style="margin-top:20px"><label class="btn" style="cursor:pointer">Import backup (.json)<input type="file" accept=".json,application/json" id="importFile" class="hidden"></label></p>`:''}</div>`;
+  const imp=$('#importFile');if(imp)imp.onchange=e=>{const f=e.target.files[0];if(f)importBackup(f)};
+}
+function newProjectModal(replace){
+  const m=openModal(`<div class="mh">${replace?'Replace floorplan image':'New project'}</div><div class="mb">
+    ${replace?'<div class="note">Devices keep their positions. Use an image of the same plan at the same scale and cropping.</div>':fT('Project name','np.name','','id="npName" placeholder="e.g. 2716 W 37th Ave"')}
+    <div class="drop" id="npDrop">Drop a floorplan image here, or click to choose<br><span class="muted" style="font-size:12px">JPEG or PNG. A screenshot of a PDF page works too.</span><input type="file" accept="image/*" id="npFile" class="hidden"></div>
+    <div id="npPrev" style="margin-top:10px"></div></div>
+    <div class="mf"><button class="btn" data-act="closeModal">Cancel</button><button class="btn pri" id="npGo" disabled>${replace?'Replace':'Create'}</button></div>`);
+  let file=null;
+  const drop=m.querySelector('#npDrop'),inp=m.querySelector('#npFile');
+  drop.onclick=()=>inp.click();
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragleave=()=>drop.classList.remove('over');
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])pick(e.dataTransfer.files[0])};
+  inp.onchange=()=>{if(inp.files[0])pick(inp.files[0])};
+  function pick(f){if(!/^image\//.test(f.type)){toast('Please choose an image file');return}file=f;const u=URL.createObjectURL(f);m.querySelector('#npPrev').innerHTML=`<img src="${u}" style="max-width:100%;max-height:220px;border:1px solid var(--line);border-radius:6px">`;m.querySelector('#npGo').disabled=false;const n=m.querySelector('#npName');if(n&&!n.value)n.value=f.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')}
+  m.querySelector('#npGo').onclick=async()=>{
+    const go=m.querySelector('#npGo');go.disabled=true;go.textContent='Uploading…';
+    try{
+      if(replace){
+        const r=await storeImage(S.proj.id,file);S.proj.image=r.image;S.imgUrl=r.imgUrl;S.imgData=r.imgData;S._imgCache=null;
+        const ow=S.imgW;S.imgW=r.image.w;S.imgH=r.image.h;
+        if(ow&&ow!==S.imgW){const f=S.imgW/ow;pushUndo();S.devs.forEach(d=>{d.x=Math.round(d.x*f);d.y=Math.round(d.y*f);markDev(d.id)});S.proj.floors.forEach(fl=>{fl.x*=f;fl.y*=f;fl.w*=f;fl.h*=f})}
+        markProj();closeModal();renderAll();fit();return;
+      }
+      const name=m.querySelector('#npName').value.trim()||'Untitled';
+      await createProject(name,file);closeModal();
+    }catch(e){console.error(e);go.disabled=false;go.textContent='Try again';toast('Could not create project: '+(e.message||e.code||e))}
+  };
+}
+async function createProject(name,file,extra){
+  const id=uid();
+  const r=await storeImage(id,file);
+  S.proj={id,name,address:'',image:r.image,floors:[],circuits:[],settings:{sym:1},createdAt:Date.now()};
+  S.devs=new Map();S.imgUrl=r.imgUrl;S.imgData=r.imgData;S.imgW=r.image.w;S.imgH=r.image.h;S.undo=[];S.redo=[];
+  if(extra){Object.assign(S.proj,extra.proj||{});(extra.devices||[]).forEach(d=>S.devs.set(d.id,d))}
+  S.proj.id=id;S.proj.image=r.image;
+  S.dirty.proj=true;S.devs.forEach((d,i)=>S.dirty.devs.add(i));
+  await flush();
+  enterProject(!extra);
+}
+async function importBackup(file){
+  try{
+    const o=JSON.parse(await file.text());if(o.format!=='emap-1')throw new Error('Not a backup from this app');
+    let imgFile=null;if(o.image){const b=await (await fetch(o.image)).blob();imgFile=new File([b],'plan.jpg',{type:b.type||'image/jpeg'})}
+    if(!imgFile)throw new Error('Backup has no image');
+    toast('Importing…',6000);
+    await createProject((o.proj.name||'Imported')+' (imported)',imgFile,{proj:{address:o.proj.address,floors:o.proj.floors,circuits:o.proj.circuits,settings:o.proj.settings},devices:o.devices});
+  }catch(e){toast('Import failed: '+(e.message||e))}
+}
+async function openProject(id){
+  $('#home').innerHTML='<div class="homewrap"><p class="muted">Opening…</p></div>';
+  try{
+    const o=await loadProject(id);
+    S.proj=o.proj;S.proj.id=id;S.proj.floors=S.proj.floors||[];S.proj.circuits=S.proj.circuits||[];S.proj.settings=S.proj.settings||{sym:1};
+    S.devs=new Map((o.devs||[]).map(d=>[d.id,normDev(d)]));
+    const im=S.proj.image||{};
+    S.imgData=o.imgData||null;S.imgUrl=im.kind==='asset'?im.url:(o.imgData||'');S.imgW=im.w||1000;S.imgH=im.h||800;S._imgCache=null;
+    S.undo=[];S.redo=[];S.dirty={proj:false,devs:new Set(),del:new Set()};
+    enterProject(false);
+  }catch(e){toast('Could not open: '+(e.message||e.code));showHome()}
+}
+function normDev(d){d.controls=d.controls||[];d.p=Object.assign(defaultsFor(TYPES[d.type]?d.type:'jbox'),d.p||{});d.smart=Object.assign({on:false,role:'',brand:'',model:'',protocol:'',hub:'',scenes:'',neutral:''},d.smart||{});if(!TYPES[d.type])d.type='jbox';return d}
+function enterProject(isNew){
+  $('#home').classList.add('hidden');$('#planView').classList.remove('hidden');
+  $('#projName').classList.remove('hidden');$('#viewTabs').classList.remove('hidden');$('#exportMenu').classList.remove('hidden');
+  S.page='plan';$$('#viewTabs button').forEach(b=>b.classList.toggle('on',b.dataset.p==='plan'));$('#reportView').classList.add('hidden');
+  S.sel=new Set();S.anchor=null;S.paintC='';S.floorId=S.proj.floors[0]?.id||null;S.floorSel=null;
+  $('#symSize').value=S.proj.settings?.sym||1;
+  renderPalette();
+  setStatus(S.canWrite?'saved':'ro');
+  requestAnimationFrame(()=>{
+    if(!S.proj.floors.length){setMode('floors');if(isNew)toast('Draw a box around each floor, or use the whole image as one floor.',5000)}
+    else{setMode('select');fit()}
+    renderAll();
+  });
+}
+async function flushNow(){if(S.proj&&(S.dirty.devs.size||S.dirty.del.size||S.dirty.proj)){clearTimeout(flushT);await flush()}}
+
+/* ================= actions ================= */
+const ACT={
+  goHome:()=>showHome(),
+  newProject:()=>newProjectModal(false),
+  open:(b,e)=>{if(e.target.closest('[data-act="delProject"]'))return;openProject(b.dataset.id)},
+  delProject:async(b,e)=>{e.stopPropagation();if(await confirmBox('This deletes the project, its devices and circuits. This can’t be undone.')){try{await deleteProject(b.dataset.id);toast('Deleted')}catch(err){toast('Delete failed: '+(err.message||err.code))}showHome()}},
+  closeModal:()=>closeModal(),
+  copyFb:()=>{const t=$('#fbText');t.select();copyText(t.value)},
+  page:(b)=>{S.page=b.dataset.p;$$('#viewTabs button').forEach(x=>x.classList.toggle('on',x===b));const plan=S.page==='plan';$('#planView').classList.toggle('hidden',!plan);$('#reportView').classList.toggle('hidden',plan);if(plan){requestAnimationFrame(()=>{fit();renderStage()})}else renderReport()},
+  toggleMenu:(b)=>{b.nextElementSibling.classList.toggle('hidden')},
+  mode:(b)=>setMode(b.dataset.m),
+  floor:(b)=>{S.floorId=b.dataset.id;S.sel.clear();S.anchor=null;if(S.mode==='floors')setMode('select');renderFloorTabs();fit();renderStage();renderSide()},
+  pick:(b)=>{const it=PALETTE[+b.dataset.g].items[+b.dataset.i];if(!curFloor()){toast('Define a floor first');return}if(S.mode==='place'&&S.place&&S.place.gi===+b.dataset.g&&S.place.ii===+b.dataset.i){setMode('select');return}S.place={...it,gi:+b.dataset.g,ii:+b.dataset.i};setMode('place')},
+  side:(b)=>{S.side=b.dataset.s;renderSide()},
+  undo:()=>undo(),redo:()=>redo(),
+  zoomIn:()=>{const v=S.view;zoomAt(.75,v.x+v.w/2,v.y+v.h/2)},zoomOut:()=>{const v=S.view;zoomAt(1.33,v.x+v.w/2,v.y+v.h/2)},fit:()=>fit(),
+  delSel:()=>{if(!S.sel.size||!S.canWrite)return;pushUndo();removeDevices([...S.sel]);renderAll()},
+  dupSel:()=>duplicateSel(),
+  centerSel:()=>{const d=S.devs.get([...S.sel][0]);if(!d)return;const v=S.view;S.view={...v,x:d.x-v.w/2,y:d.y-v.h/2};setViewBox()},
+  selDev:(b)=>selectDev(b.dataset.id),
+  jump:(b)=>{const id=b.dataset.id;ACT.page($('#viewTabs button[data-p="plan"]'));selectDev(id,true)},
+  unlink:(b)=>{if(!S.canWrite)return;pushUndo();const s=S.devs.get(b.dataset.s);if(!s)return;s.controls=s.controls.filter(x=>x!==b.dataset.l);markDev(s.id);renderAll()},
+  startLink:()=>{const id=[...S.sel][0];setMode('link');S.anchor=id;S.sel=new Set([id]);S.side='props';renderStage();renderSide()},
+  linkSel:()=>{pushUndo();const ds=[...S.sel].map(i=>S.devs.get(i));const sws=ds.filter(isSwitch),ls=ds.filter(d=>!isSwitch(d));sws.forEach(s=>{ls.forEach(l=>{if(!s.controls.includes(l.id))s.controls.push(l.id)});markDev(s.id)});toast(`${sws.length} switch${sws.length>1?'es':''} now control ${ls.length} device${ls.length>1?'s':''}`);renderAll()},
+  addCircuit:()=>{if(!S.canWrite)return;pushUndo();const cs=S.proj.circuits;const n=cs.reduce((m,c)=>Math.max(m,parseFloat(c.num)||0),0)+1;cs.push({id:uid(),num:String(n),label:'',amps:15,poles:1,btype:'Standard',panel:'Main'});markProj();renderSide();setTimeout(()=>{const r=$$('#sideBody tr[data-cid] input[data-cf="label"]');const t=r.find(i=>i.closest('tr').querySelector('[data-cf="num"]').value===String(n));t&&t.focus()},20)},
+  bulkCircuits:()=>{const m=openModal(`<div class="mh">Add a range of breakers</div><div class="mb"><div class="row3">${fT('From #','b.from','1','id="bFrom" inputmode="numeric"')}${fT('To #','b.to','30','id="bTo" inputmode="numeric"')}${fT('Panel','b.panel','Main','id="bPanel"')}</div><div class="muted" style="font-size:12px">Existing numbers in that panel are skipped. You can set labels and amps afterwards.</div></div><div class="mf"><button class="btn" data-act="closeModal">Cancel</button><button class="btn pri" id="bGo">Add</button></div>`);
+    m.querySelector('#bGo').onclick=()=>{const a=parseInt(m.querySelector('#bFrom').value,10),z=parseInt(m.querySelector('#bTo').value,10),pn=m.querySelector('#bPanel').value.trim()||'Main';if(!(a>0&&z>=a&&z-a<120))return toast('Check the numbers');pushUndo();for(let i=a;i<=z;i++){if(!S.proj.circuits.some(c=>String(c.num)===String(i)&&(c.panel||'Main')===pn))S.proj.circuits.push({id:uid(),num:String(i),label:'',amps:15,poles:1,btype:'Standard',panel:pn})}markProj();closeModal();renderSide()}},
+  circuitMore:(b)=>{const c=S.circuitById(b.dataset.id);if(!c)return;const n=[...S.devs.values()].filter(d=>d.circuit===c.id).length;
+    const m=openModal(`<div class="mh">Breaker ${esc(c.num)}</div><div class="mb"><div class="row2">${fT('Number','c.num',c.num,'id="cNum"')}${fT('Panel','c.panel',c.panel||'Main','id="cPanel"')}</div>${fT('Label','c.label',c.label,'id="cLabel"')}
+      <div class="row3">${fS('Amps','c.amps',c.amps,[15,20,30,40,50,60],'id="cAmps"')}${fS('Poles','c.poles',c.poles||1,[[1,'1-pole (120V)'],[2,'2-pole (240V)']],'id="cPoles"')}${fS('Breaker type','c.btype',c.btype||'Standard',['Standard','AFCI','GFCI','AFCI/GFCI (dual)','Tandem'],'id="cType"')}</div>
+      ${fT('Notes','c.notes',c.notes||'','id="cNotes"')}<div class="muted" style="font-size:12px">${n} device${n===1?'':'s'} on this circuit.</div></div>
+      <div class="mf"><button class="btn danger" id="cDel" style="margin-right:auto">Delete breaker</button><button class="btn" data-act="closeModal">Cancel</button><button class="btn pri" id="cSave">Save</button></div>`);
+    m.querySelector('#cSave').onclick=()=>{pushUndo();Object.assign(c,{num:m.querySelector('#cNum').value.trim(),panel:m.querySelector('#cPanel').value.trim()||'Main',label:m.querySelector('#cLabel').value,amps:+m.querySelector('#cAmps').value,poles:+m.querySelector('#cPoles').value,btype:m.querySelector('#cType').value,notes:m.querySelector('#cNotes').value});markProj();closeModal();renderAll()};
+    m.querySelector('#cDel').onclick=()=>{pushUndo();S.proj.circuits=S.proj.circuits.filter(x=>x.id!==c.id);S.devs.forEach(d=>{if(d.circuit===c.id){d.circuit='';markDev(d.id)}});if(S.paintC===c.id)S.paintC='';if(S.sticky.circuit===c.id)S.sticky.circuit='';markProj();closeModal();renderAll()}},
+  paintWith:(b)=>{if(S.mode==='paint'&&S.paintC===b.dataset.id){setMode('select');return}S.paintC=b.dataset.id;setMode('paint')},
+  floorUp:(b)=>{const fl=S.proj.floors,i=fl.findIndex(f=>f.id===b.dataset.id);if(i>0){pushUndo();[fl[i-1],fl[i]]=[fl[i],fl[i-1]];markProj();renderSide();renderFloorTabs()}},
+  floorDel:async(b)=>{const f=S.proj.floors.find(x=>x.id===b.dataset.id);const n=[...S.devs.values()].filter(d=>d.floor===f.id).length;if(n&&!(await confirmBox(`“${esc(f.name)}” has ${n} device${n>1?'s':''}. Deleting the floor deletes them too.`)))return;pushUndo();removeDevices([...S.devs.values()].filter(d=>d.floor===f.id).map(d=>d.id));S.proj.floors=S.proj.floors.filter(x=>x.id!==f.id);if(S.floorId===f.id)S.floorId=S.proj.floors[0]?.id||null;markProj();renderAll()},
+  wholeFloor:()=>{pushUndo();const f={id:uid(),name:S.proj.floors.length?'Floor '+(S.proj.floors.length+1):'Main floor',x:0,y:0,w:S.imgW,h:S.imgH};S.proj.floors.push(f);S.floorSel=f.id;markProj();if(S.mode==='floors'){S.floorId=f.id;setMode('select')}renderAll()},
+  floorsDone:()=>{if(!S.proj.floors.length){ACT.wholeFloor();return}S.floorId=S.floorId&&S.proj.floors.find(f=>f.id===S.floorId)?S.floorId:S.proj.floors[0].id;S.side='props';setMode('select');renderAll()},
+  replaceImg:()=>newProjectModal(true),
+  exportPng:(b)=>{closeMenus();exportPng(b.dataset.scope)},
+  exportReport:()=>{closeMenus();exportReport()},
+  csv:(b)=>{closeMenus();saveFile(`${fileBase()}-${b.dataset.k}.csv`,csvFor(b.dataset.k))},
+  copyCsv:(b)=>copyText(csvFor(b.dataset.k)),
+  copyDir:()=>{const {groups}=breakerData();copyText(groups.map(({c,devs})=>`${c.panel&&c.panel!=='Main'?c.panel+' ':''}${c.num}\t${c.label||autoSummary(devs)}`).join('\n'))},
+  exportDir:()=>saveFile(fileBase()+'-panel-directory.html',dirHtml()),
+  backup:()=>{closeMenus();backup()},
+  sort:(b)=>{const k=b.dataset.k;S.sort={k,d:S.sort.k===k?-S.sort.d:1};renderReport()}
+};
+function closeMenus(){$$('.menu .dd').forEach(d=>d.classList.add('hidden'))}
+function selectDev(id,center){
+  const d=S.devs.get(id);if(!d)return;
+  if(d.floor!==S.floorId){S.floorId=d.floor;renderFloorTabs();fit()}
+  if(S.mode==='floors')setMode('select');
+  S.sel=new Set([id]);S.side='props';renderStage();renderSide();
+  if(center){const v=S.view,f=curFloor();const w=Math.min(v.w,(f?.w||v.w)*.6),h=w*v.h/v.w;S.view={x:d.x-w/2,y:d.y-h/2,w,h};setViewBox()}
+}
+function duplicateSel(){
+  if(!S.sel.size||!S.canWrite)return;pushUndo();
+  const off=12*symScale()*2.2;const map={};const nw=[];
+  [...S.sel].forEach(id=>{const d=S.devs.get(id);if(!d)return;const n=clone(d);n.id=uid();n.x+=off;n.y+=off;n.tag=nextTag(TYPES[d.type].cat);S.devs.set(n.id,n);map[id]=n.id;nw.push(n)});
+  nw.forEach(n=>{n.controls=(n.controls||[]).map(x=>map[x]||x);markDev(n.id)});
+  S.sel=new Set(nw.map(n=>n.id));renderAll();
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');
+  if(!e.target.closest('.menu'))closeMenus();
+  if(!b)return;
+  const f=ACT[b.dataset.act];if(f){f(b,e)}
+});
+document.addEventListener('input',e=>{
+  const el=e.target;
+  if(el.dataset.filt){S.filt[el.dataset.filt]=el.value;const pos=el.selectionStart;renderReport();if(el.dataset.filt==='q'){const n=$('#reportView [data-filt="q"]');n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}}
+});
+$('#projName').addEventListener('input',e=>{if(!S.proj||!S.canWrite)return;S.proj.name=e.target.value;markProj()});
+$('#colorBy').addEventListener('change',e=>{S.colorBy=e.target.value;renderStage();renderPalette();if(S.side==='props')renderSide()});
+$('#showLinks').addEventListener('change',e=>{S.showLinks=e.target.value;renderLinks()});
+$('#showTags').addEventListener('change',e=>{S.showTags=e.target.checked;renderDevs()});
+$('#symSize').addEventListener('input',e=>{if(!S.proj)return;S.proj.settings=S.proj.settings||{};S.proj.settings.sym=+e.target.value;renderDevs();renderLinks()});
+$('#symSize').addEventListener('change',()=>{if(S.canWrite)markProj()});
+document.addEventListener('keydown',e=>{
+  if(e.key===' '&&!isTyping(e)){spaceDown=true;if(e.target===document.body)e.preventDefault()}
+  if(!S.proj||S.page!=='plan'||isTyping(e)||!$('#modalBg').classList.contains('hidden'))return;
+  const mod=e.ctrlKey||e.metaKey;
+  if(mod&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();return}
+  if(mod&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return}
+  if(mod&&e.key.toLowerCase()==='d'){e.preventDefault();duplicateSel();return}
+  if(mod&&e.key.toLowerCase()==='a'){e.preventDefault();S.sel=new Set([...S.devs.values()].filter(d=>d.floor===S.floorId).map(d=>d.id));renderDevs();renderLinks();renderSide();return}
+  if(mod)return;
+  if(e.key==='Escape'){if(S.mode!=='select'&&S.mode!=='floors')setMode('select');else if(S.sel.size){S.sel.clear();renderDevs();renderLinks();renderSide()}return}
+  if(e.key==='Delete'||e.key==='Backspace'){if(S.mode==='floors'&&S.floorSel){ACT.floorDel({dataset:{id:S.floorSel}});return}if(S.sel.size){e.preventDefault();ACT.delSel()}return}
+  const k=e.key.toLowerCase();
+  if(k==='v')setMode('select');else if(k==='l')setMode('link');else if(k==='c')setMode('paint');else if(k==='0')fit();
+  else if(k==='+'||k==='=')ACT.zoomIn();else if(k==='-')ACT.zoomOut();
+  else if(e.key.startsWith('Arrow')&&S.sel.size&&S.canWrite){
+    e.preventDefault();const st=(e.shiftKey?10:1)*Math.max(1,S.imgW/1500);const dx={ArrowLeft:-st,ArrowRight:st}[e.key]||0,dy={ArrowUp:-st,ArrowDown:st}[e.key]||0;
+    if(!S._nudgeT)pushUndo();clearTimeout(S._nudgeT);S._nudgeT=setTimeout(()=>S._nudgeT=null,700);
+    S.sel.forEach(id=>{const d=S.devs.get(id);d.x=Math.round(d.x+dx);d.y=Math.round(d.y+dy);markDev(id)});moveDevNodes([...S.sel]);
+  }
+});
+document.addEventListener('keyup',e=>{if(e.key===' ')spaceDown=false});
+function isTyping(e){const t=e.target;return t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable)}
+window.addEventListener('beforeunload',()=>{if(S.proj&&S.store!=='cloud'&&(S.dirty.devs.size||S.dirty.proj||S.dirty.del.size))saveLocal()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushNow()});
+
+/* ================= boot ================= */
+bindStage();bindSide();
+(async()=>{
+  $('#home').innerHTML='<div class="homewrap"><p class="muted">Loading…</p></div>';
+  await initCaps();
+  showHome();
+})();
+</script>
+</body>
+</html>
