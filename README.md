@@ -4,6 +4,8 @@ A single-file browser app for mapping electrical receptacles, switches, lights a
 
 ## Features
 
+- A built-in **sample house** (a fictional two-floor plan with about 80 devices already mapped) for trying the app out. It opens automatically on first run when there are no projects, and you can start a fresh copy from the projects page at any time.
+
 - Upload a floorplan JPEG or PNG and draw a box around each floor to give it its own tab.
 - Place receptacles (duplex, 20A, GFCI, AFCI/GFCI, USB, quad, weatherproof, 240V, floor box), switches (single-pole, 3-way, 4-way, dimmer, fan control, occupancy sensor, timer, smart main, smart companion, scene keypad, wireless remote), lights and fans, and other devices (smoke/CO alarms, panel, junction box, thermostat, data, doorbell, EV charger, hardwired appliances, hubs, sensors).
 - Edit each device's room, label, status (existing / new / relocate / remove), circuit, switched half of a receptacle, GFCI protection chain, and smart details (role, protocol, brand, hub, scenes, neutral).

@@ -412,7 +412,7 @@ async function loadProject(id){
 function projDoc(){
   const p=S.proj;
   return {name:p.name||'Untitled',address:p.address||'',image:p.image||{kind:'none'},floors:p.floors||[],circuits:p.circuits||[],settings:p.settings||{},
-    deviceCount:S.devs.size,createdAt:p.createdAt||Date.now(),updatedAt:Date.now(),thumb:p.image&&p.image.kind==='asset'?p.image.url:''};
+    deviceCount:S.devs.size,createdAt:p.createdAt||Date.now(),updatedAt:Date.now(),thumb:p.image&&p.image.kind==='asset'?p.image.url:(p.thumb||'')};
 }
 function devDoc(d){const o=clone(d);delete o.id;return o}
 let flushT=null,flushing=false,saveErr=false;
@@ -456,7 +456,7 @@ function saveLocal(){
   if(S.store==='local'){
     const ok=LS.set('emap:p:'+S.proj.id,JSON.stringify(blob));
     if(!ok){S.store='memory';toast('Browser storage is full; export a backup to keep your work.',5000)}
-    else{const ix=localIndex().filter(x=>x.id!==S.proj.id);ix.push({id:S.proj.id,name:pd.name,updatedAt:pd.updatedAt,deviceCount:pd.deviceCount,floors:pd.floors,thumb:''});setLocalIndex(ix)}
+    else{const ix=localIndex().filter(x=>x.id!==S.proj.id);ix.push({id:S.proj.id,name:pd.name,updatedAt:pd.updatedAt,deviceCount:pd.deviceCount,floors:pd.floors,thumb:pd.thumb});setLocalIndex(ix)}
   }
   if(S.store==='memory')MEM[S.proj.id]=clone(blob);
 }
@@ -1323,17 +1323,22 @@ $('#modalBg').addEventListener('pointerdown',e=>{if(e.target.id==='modalBg')clos
 async function showHome(){
   await flushNow();
   S.proj=null;S.devs=new Map();S._imgCache=null;
+  if(S._saved){S.store=S._saved.store;S.canWrite=S._saved.canWrite;S._saved=null}
   $('#home').classList.remove('hidden');$('#planView').classList.add('hidden');$('#reportView').classList.add('hidden');
   $('#projName').classList.add('hidden');$('#viewTabs').classList.add('hidden');$('#exportMenu').classList.add('hidden');$('#saveStatus').textContent='';
   const h=$('#home');
   h.innerHTML=`<div class="homewrap"><h1>Electrical floorplan projects</h1><p class="sub">Upload a floorplan image, then map receptacles, switches, lights and circuits on it.</p><div class="muted">Loading…</div></div>`;
   let list=[];let err='';
   try{list=await listProjects()}catch(e){err=e.message||e.code||'could not load'}
+  if(!err&&!list.length&&S.store!=='cloud'&&!S._autoSample&&!LS.get('switchmap:sampleShown')){S._autoSample=true;LS.set('switchmap:sampleShown','1');return openSample()}
+  const sampleThumb='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(sampleSvg());
   const banner=S.store==='cloud'?(S.canWrite?'':'<div class="banner warn">You can view these projects but not change them.</div>')
     :S.store==='local'?'<div class="banner warn">Saving to your account isn’t available in this view, so projects are kept in this browser only. Use Export → Backup to keep a copy.</div>'
     :'<div class="banner warn">Storage isn’t available here, so your work lasts only until you close this page. Use Export → Backup to keep it.</div>';
   h.innerHTML=`<div class="homewrap"><h1>Electrical floorplan projects</h1><p class="sub">Upload a floorplan image, then map receptacles, switches, lights and circuits on it.</p>${banner}${err?`<div class="banner warn">Couldn’t load projects: ${esc(err)}</div>`:''}
+    ${!list.length&&!err?'<div class="banner">New here? Open the <b>sample house</b> to try placing devices, linking 3-way switches and mapping circuits before you upload your own plan.</div>':''}
     <div class="cards">${S.canWrite?`<div class="card new" data-act="newProject"><span style="font-size:26px;line-height:1">+</span>New project</div>`:''}
+    <div class="card" data-act="sample"><div class="thumb" style="background-image:url(&quot;${sampleThumb}&quot;)"></div><div class="meta"><b>Sample house: new copy</b><span>2 floors · ${sampleData().devices.length} devices · try it out${S.canWrite?'':' (not saved)'}</span></div></div>
     ${list.map(p=>`<div class="card" data-act="open" data-id="${esc(p.id)}"><div class="thumb" style="${p.thumb?`background-image:url('${esc(p.thumb)}')`:''}"></div><div class="meta"><b>${esc(p.name||'Untitled')}</b><span>${(p.floors||[]).length} floor${(p.floors||[]).length===1?'':'s'} · ${p.deviceCount||0} devices${p.updatedAt?' · '+new Date(p.updatedAt).toLocaleDateString():''}</span>
       ${S.canWrite?`<div style="margin-top:6px"><button class="btn sm danger" data-act="delProject" data-id="${esc(p.id)}">Delete</button></div>`:''}</div></div>`).join('')}</div>
     ${S.canWrite?`<p style="margin-top:20px"><label class="btn" style="cursor:pointer">Import backup (.json)<input type="file" accept=".json,application/json" id="importFile" class="hidden"></label></p>`:''}</div>`;
@@ -1369,13 +1374,173 @@ function newProjectModal(replace){
 async function createProject(name,file,extra){
   const id=uid();
   const r=await storeImage(id,file);
-  S.proj={id,name,address:'',image:r.image,floors:[],circuits:[],settings:{sym:1},createdAt:Date.now()};
+  let thumb='';if(r.image.kind!=='asset'){try{thumb=(await downscale(await loadImg(r.imgUrl),320,.7)).url}catch(e){}}
+  S.proj={id,name,address:'',image:r.image,floors:[],circuits:[],settings:{sym:1},createdAt:Date.now(),thumb};
   S.devs=new Map();S.imgUrl=r.imgUrl;S.imgData=r.imgData;S.imgW=r.image.w;S.imgH=r.image.h;S.undo=[];S.redo=[];
   if(extra){Object.assign(S.proj,extra.proj||{});(extra.devices||[]).forEach(d=>S.devs.set(d.id,d))}
-  S.proj.id=id;S.proj.image=r.image;
+  S.proj.id=id;S.proj.image=r.image;S.proj.thumb=thumb;
   S.dirty.proj=true;S.devs.forEach((d,i)=>S.dirty.devs.add(i));
   await flush();
   enterProject(!extra);
+}
+/* ================= sample project ================= */
+function sampleSvg(){
+  let s='';
+  const L=(x1,y1,x2,y2,w=6)=>{s+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#111" stroke-width="${w}" stroke-linecap="square"/>`};
+  const R=(x,y,w,h,sw=2,fill='none')=>{s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" stroke="#111" stroke-width="${sw}"/>`};
+  const door=(x,y,r,a)=>{s+=`<g transform="translate(${x},${y}) rotate(${a})"><rect x="1" y="-8" width="${r-2}" height="16" fill="#fff"/><line x1="0" y1="0" x2="0" y2="${r}" stroke="#111" stroke-width="2"/><path d="M${r},0 A${r},${r} 0 0 1 0,${r}" fill="none" stroke="#111" stroke-width="1.2"/></g>`};
+  const win=(x,y,len,v)=>{s+=v?`<rect x="${x-7}" y="${y}" width="14" height="${len}" fill="#fff" stroke="#111" stroke-width="1.5"/><line x1="${x}" y1="${y}" x2="${x}" y2="${y+len}" stroke="#111" stroke-width="1"/>`:`<rect x="${x}" y="${y-7}" width="${len}" height="14" fill="#fff" stroke="#111" stroke-width="1.5"/><line x1="${x}" y1="${y}" x2="${x+len}" y2="${y}" stroke="#111" stroke-width="1"/>`};
+  const lab=(x,y,n,d)=>{s+=`<text x="${x}" y="${y}" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#222">${n}</text>`;if(d)s+=`<text x="${x}" y="${y+18}" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" fill="#444">${d}</text>`};
+  const treads=(x,y,w,h,n,vert)=>{R(x,y,w,h,1.5);for(let i=1;i<n;i++){if(vert)L(x,y+h*i/n,x+w,y+h*i/n,1.2);else L(x+w*i/n,y,x+w*i/n,y+h,1.2)}};
+  /* ---- main floor ---- */
+  R(60,90,700,780,12);
+  L(60,420,200,420);L(330,420,760,420);
+  L(420,90,420,200);L(420,320,420,420);
+  L(480,420,480,480);L(480,600,480,870);
+  L(480,640,760,640);L(620,640,620,870);
+  R(70,100,340,60,1.5);R(150,170,16,16,1);R(190,170,16,16,1);
+  R(160,255,160,60,1.5);R(70,330,60,80,1.5);
+  s+=`<circle cx="250" cy="130" r="12" fill="none" stroke="#111" stroke-width="1"/><circle cx="290" cy="130" r="12" fill="none" stroke="#111" stroke-width="1"/>`;
+  R(64,520,22,140,1.5,'#ddd');
+  treads(490,650,120,210,9,true);
+  R(700,650,48,30,1.2);s+=`<ellipse cx="660" cy="830" rx="22" ry="28" fill="none" stroke="#111" stroke-width="1.2"/>`;
+  door(640,640,60,0);door(760,480,80,90);
+  win(60,210,100,true);win(150,870,230,false);win(60,690,120,true);win(760,140,200,true);win(500,90,180,false);win(240,90,120,false);
+  lab(240,215,'KITCHEN',"14' 0\" x 11' 0\"");lab(590,300,'DINING ROOM',"11' 2\" x 11' 0\"");lab(270,780,'LIVING ROOM',"14' 0\" x 15' 2\"");
+  lab(620,605,'ENTRY');lab(690,780,'POWDER');lab(550,620,'');
+  s+=`<text x="550" y="760" text-anchor="middle" font-family="Arial" font-size="12" fill="#444" transform="rotate(-90 550 760)">STAIRS</text>`;
+  /* ---- upper floor ---- */
+  R(840,90,700,780,12);
+  L(1240,90,1240,460);L(1240,300,1540,300);
+  L(840,460,1540,460);L(840,560,1540,560);
+  L(1400,460,1400,560);L(1140,560,1140,870);L(1300,560,1300,870);
+  door(1240,200,70,90);door(1240,380,60,-90);door(980,460,70,180);
+  door(900,560,70,0);door(1160,560,60,0);door(1320,560,70,0);door(1400,480,60,90);
+  R(1440,100,90,190,1.5);R(1260,100,130,40,1.2);R(1150,790,140,70,1.5);R(1230,600,50,30,1.2);
+  treads(1000,468,140,84,8,false);
+  win(1000,90,200,false);win(840,180,180,true);win(1540,150,100,true);win(920,870,150,false);win(1360,870,140,false);win(1180,870,80,false);win(1540,640,140,true);
+  lab(1040,330,'PRIMARY BEDROOM',"13' 4\" x 12' 4\"");lab(1340,215,'ENSUITE',"10' 0\" x 7' 0\"");lab(1320,385,'WIC');
+  lab(920,515,'HALL');lab(1468,492,'LAUNDRY');lab(990,660,'BEDROOM 2',"10' 0\" x 10' 4\"");lab(1220,670,'BATH');lab(1420,660,'BEDROOM 3',"8' 0\" x 10' 4\"");
+  /* titles */
+  s+=`<text x="410" y="935" text-anchor="middle" font-family="Arial" font-size="30" fill="#111">MAIN FLOOR</text><text x="1190" y="935" text-anchor="middle" font-family="Arial" font-size="30" fill="#111">UPPER FLOOR</text>`;
+  s+=`<text x="1560" y="985" text-anchor="end" font-family="Arial" font-size="13" fill="#888">SAMPLE HOUSE · fictional plan for testing</text>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000"><rect width="1600" height="1000" fill="#fff"/>${s}</svg>`;
+}
+function sampleData(){
+  const C=(id,num,label,amps,o={})=>({id,num:String(num),label,amps,poles:o.poles||1,btype:o.bt||'Standard',panel:'Main',notes:''});
+  const circuits=[C('c1',1,'Kitchen counter (left)',20),C('c2',2,'Kitchen counter (island)',20),C('c3',3,'Fridge',15),C('c4',4,'Main floor lights',15,{bt:'AFCI'}),
+    C('c5',5,'Living / dining outlets',15,{bt:'AFCI'}),C('c6',6,'Bedroom outlets',15,{bt:'AFCI'}),C('c7',7,'Upper floor lights',15,{bt:'AFCI'}),C('c8',8,'Bathrooms',20,{bt:'GFCI'}),
+    C('c9',9,'Dryer',30,{poles:2}),C('c10',10,'Washer',20),C('c11',11,'Range',40,{poles:2}),C('c12',12,'Smoke alarms',15,{bt:'AFCI'})];
+  const out=[];
+  const D=(tag,type,floor,x,y,room,o={})=>{out.push({id:'s'+tag.toLowerCase(),type,floor,x,y,tag,label:o.l||'',room,status:o.st||'existing',circuit:o.c||'',controls:(o.ctl||[]).map(t=>'s'+t.toLowerCase()),protectedBy:o.pb?(o.pb==='breaker'?'breaker':'s'+o.pb.toLowerCase()):'',notes:o.n||'',
+    p:Object.assign(defaultsFor(type),o.p||{}),smart:Object.assign({on:false,role:'',brand:'',model:'',protocol:'',hub:'',scenes:'',neutral:''},o.sm||{})})};
+  const caseta={on:true,brand:'Lutron Caséta',protocol:'Lutron Clear Connect',hub:'Caséta Smart Bridge'};
+  const F1='sf1',F2='sf2';
+  // main floor: kitchen
+  D('R1','gfci',F1,100,175,'Kitchen',{l:'Counter left',c:'c1'});
+  D('R2','dup20',F1,250,175,'Kitchen',{l:'Counter by sink',c:'c1',pb:'R1'});
+  D('R3','gfci',F1,395,175,'Kitchen',{l:'Counter right',c:'c2'});
+  D('R4','dup20',F1,240,325,'Kitchen',{l:'Island',c:'c2',pb:'R3'});
+  D('R5','dup',F1,80,345,'Kitchen',{l:'Fridge',c:'c3',p:{dedicated:'Fridge'}});
+  D('R6','r240',F1,330,110,'Kitchen',{l:'Range',c:'c11',p:{amps:40}});
+  D('L1','pend',F1,210,285,'Kitchen',{l:'Island pendant',c:'c4',p:{dimmable:false}});
+  D('L2','pend',F1,270,285,'Kitchen',{l:'Island pendant',c:'c4'});
+  [['L3',130,215],['L4',350,215],['L5',130,375],['L6',350,375]].forEach(([t,x,y])=>D(t,'pot',F1,x,y,'Kitchen',{l:'Pot light',c:'c4',p:{dimmable:true,watts:'9',cct:'3000K'}}));
+  D('S1','sw',F1,188,408,'Kitchen',{l:'Island pendants',c:'c4',p:{config:'3way'},ctl:['L1','L2']});
+  D('S2','sw',F1,430,340,'Kitchen',{l:'Island pendants',c:'c4',p:{config:'3way'},ctl:['L1','L2']});
+  D('S3','sw',F1,345,408,'Kitchen',{l:'Kitchen pots',c:'c4',p:{kind:'dimmer'},ctl:['L3','L4','L5','L6'],sm:{...caseta,role:'main',model:'PD-6WCL',scenes:'Dinner, Movie night',neutral:'yes'}});
+  D('S4','sw',F1,410,140,'Kitchen',{l:'Pico for kitchen pots',p:{config:'remote',kind:'remote'},ctl:['L3','L4','L5','L6'],sm:{...caseta,role:'remote',model:'Pico'}});
+  // dining
+  D('L7','pend',F1,590,240,'Dining room',{l:'Chandelier',c:'c4',p:{dimmable:true}});
+  D('S5','sw',F1,430,385,'Dining room',{l:'Chandelier',c:'c4',p:{kind:'dimmer'},ctl:['L7']});
+  D('R7','dup',F1,750,280,'Dining room',{c:'c5'});
+  D('R8','dup',F1,560,100,'Dining room',{l:'Buffet',c:'c5',st:'new',n:'Add for buffet lamps'});
+  D('X1','tstat',F1,750,380,'Dining room',{l:'Thermostat',sm:{on:true,role:'device',brand:'ecobee',protocol:'Wi-Fi'}});
+  // living
+  D('R9','dup',F1,70,590,'Living room',{c:'c5',p:{controlled:'top'}});
+  D('R10','dup',F1,300,862,'Living room',{c:'c5',p:{controlled:'top'}});
+  D('R11','dup',F1,470,700,'Living room',{l:'TV wall',c:'c5'});
+  D('R12','dup',F1,470,830,'Living room',{c:'c5',st:'remove',n:'Behind sofa; abandon in place'});
+  D('S6','sw',F1,470,440,'Living room',{l:'Lamps (switched outlets)',c:'c5',ctl:['R9','R10']});
+  D('L8','fanl',F1,270,640,'Living room',{l:'Ceiling fan',c:'c4'});
+  D('S7','sw',F1,470,618,'Living room',{l:'Ceiling fan',c:'c4',p:{kind:'fan'},ctl:['L8']});
+  D('X2','hub',F1,440,760,'Living room',{l:'Caséta bridge',sm:{...caseta,role:'hub',model:'L-BDG2'}});
+  // entry
+  D('L9','ceil',F1,620,520,'Entry',{l:'Entry light',c:'c4'});
+  D('S8','sw',F1,750,570,'Entry',{l:'Entry light',c:'c4',p:{config:'3way'},ctl:['L9']});
+  D('S9','sw',F1,495,628,'Entry',{l:'Entry light (stairs)',c:'c4',p:{config:'3way'},ctl:['L9']});
+  D('S10','sw',F1,750,445,'Entry',{l:'Porch light',c:'c4',ctl:['L10']});
+  D('L10','ext',F1,782,440,'Exterior front',{l:'Porch light'});
+  D('R13','wr',F1,782,600,'Exterior front',{l:'Front porch',c:'c5'});
+  D('X3','smoke',F1,560,480,'Entry',{c:'c12'});
+  // powder
+  D('R14','gfci',F1,750,720,'Powder room',{c:'c8'});
+  D('L11','sconce',F1,690,652,'Powder room',{l:'Vanity light',c:'c4'});
+  D('L12','exh',F1,690,815,'Powder room',{l:'Exhaust fan',c:'c8'});
+  D('S11','sw',F1,632,690,'Powder room',{l:'Vanity light',c:'c4',p:{box:'2-gang, pos 1'},ctl:['L11']});
+  D('S12','sw',F1,632,725,'Powder room',{l:'Exhaust fan',c:'c8',p:{kind:'timer',box:'2-gang, pos 2'},ctl:['L12']});
+  // upper: primary
+  D('L13','fanl',F2,1040,270,'Primary bedroom',{l:'Ceiling fan',c:'c7'});
+  D('S13','sw',F2,900,448,'Primary bedroom',{l:'Ceiling fan',c:'c7',p:{kind:'fan'},ctl:['L13']});
+  D('R15','dup',F2,850,215,'Primary bedroom',{c:'c6'});
+  D('R16','dup',F2,1100,100,'Primary bedroom',{c:'c6'});
+  D('R17','dup',F2,1230,410,'Primary bedroom',{c:'c6'});
+  D('R18','usb',F2,850,380,'Primary bedroom',{l:'Nightstand',c:'c6'});
+  // ensuite
+  D('R19','gfci',F2,1250,255,'Ensuite',{l:'Vanity',c:'c8'});
+  D('L14','sconce',F2,1325,150,'Ensuite',{l:'Vanity light',c:'c7'});
+  D('L15','pot',F2,1485,195,'Ensuite',{l:'Shower pot',c:'c7',p:{dimmable:true}});
+  D('L16','exh',F2,1400,250,'Ensuite',{l:'Exhaust fan',c:'c8'});
+  D('S14','sw',F2,1250,140,'Ensuite',{l:'Vanity light',c:'c7',p:{box:'2-gang, pos 1'},ctl:['L14']});
+  D('S15','sw',F2,1250,172,'Ensuite',{l:'Shower light + fan',c:'c7',p:{box:'2-gang, pos 2'},ctl:['L15','L16']});
+  // WIC
+  D('L17','ceil',F2,1390,385,'Walk-in closet',{c:'c7'});
+  D('S16','sw',F2,1252,425,'Walk-in closet',{c:'c7',p:{kind:'occupancy'},ctl:['L17']});
+  // hall
+  D('L18','ceil',F2,965,512,'Hallway',{l:'Hall light',c:'c7'});
+  D('L19','ceil',F2,1240,512,'Hallway',{l:'Hall light',c:'c7'});
+  D('S17','sw',F2,852,512,'Hallway',{l:'Hall lights',c:'c7',p:{config:'3way'},ctl:['L18','L19']});
+  D('S18','sw',F2,1160,470,'Hallway',{l:'Hall lights (top of stairs)',c:'c7',p:{config:'4way'},ctl:['L18','L19']});
+  D('S19','sw',F2,1388,512,'Hallway',{l:'Hall lights',c:'c7',p:{config:'3way'},ctl:['L18','L19']});
+  D('X4','smoke',F2,1300,512,'Hallway',{c:'c12'});
+  // laundry
+  D('R20','dup20',F2,1530,480,'Laundry',{l:'Washer',c:'c10',p:{dedicated:'Washer'}});
+  D('R21','r240',F2,1530,540,'Laundry',{l:'Dryer',c:'c9'});
+  D('L20','ceil',F2,1468,532,'Laundry',{c:'c7'});
+  D('S20','sw',F2,1410,548,'Laundry',{c:'c7',ctl:['L20']});
+  D('X5','panel',F2,1430,472,'Laundry',{l:'Main panel 200A'});
+  // bedroom 2
+  D('R22','dup',F2,850,700,'Bedroom 2',{c:'c6'});
+  D('R23','dup',F2,990,862,'Bedroom 2',{c:'c6'});
+  D('R24','dup',F2,1130,780,'Bedroom 2',{c:'c6',st:'relocate',n:'Move 3 ft for desk'});
+  D('L21','ceil',F2,990,730,'Bedroom 2',{c:'c7'});
+  D('S21','sw',F2,985,572,'Bedroom 2',{c:'c7',ctl:['L21']});
+  // bath
+  D('R25','gfci',F2,1290,630,'Bathroom',{l:'Vanity',c:'c8'});
+  D('L22','ceil',F2,1220,710,'Bathroom',{c:'c7'});
+  D('L23','exh',F2,1220,760,'Bathroom',{l:'Exhaust fan',c:'c8'});
+  D('S22','sw',F2,1232,572,'Bathroom',{l:'Light + fan',c:'c7',ctl:['L22','L23']});
+  // bedroom 3
+  D('R26','dup',F2,1530,760,'Bedroom 3',{c:'c6'});
+  D('R27','dup',F2,1420,862,'Bedroom 3',{c:'c6'});
+  D('R28','dup',F2,1310,800,'Bedroom 3',{l:'Smart plug (lamp)',c:'c6',sm:{on:true,role:'plug',brand:'Eve Energy',protocol:'Thread / Matter',hub:'Apple Home'}});
+  D('L24','ceil',F2,1420,730,'Bedroom 3',{c:'c7'});
+  D('S23','sw',F2,1400,574,'Bedroom 3',{c:'c7',ctl:['L24'],sm:{on:true,role:'main',brand:'TP-Link Kasa',model:'KS200',protocol:'Wi-Fi',neutral:'no'}});
+  return {proj:{address:'Fictional sample house',floors:[{id:F1,name:'Main floor',x:30,y:60,w:760,h:900},{id:F2,name:'Upper floor',x:810,y:60,w:760,h:900}],circuits,settings:{sym:1}},devices:out};
+}
+async function sampleFile(){
+  const img=await loadImg('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(sampleSvg()));
+  const c=document.createElement('canvas');c.width=1600;c.height=1000;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,1600,1000);x.drawImage(img,0,0,1600,1000);
+  const b=await new Promise(r=>c.toBlob(r,'image/png'));
+  return new File([b],'sample-house.png',{type:'image/png'});
+}
+async function openSample(){
+  try{
+    if(!S.canWrite){S._saved={store:S.store,canWrite:false};S.store='memory';S.canWrite=true}
+    $('#home').innerHTML='<div class="homewrap"><p class="muted">Setting up the sample house…</p></div>';
+    await createProject('Sample house',await sampleFile(),sampleData());
+    if(S._saved)toast('Sample opened for testing. Changes aren’t saved.',5000);
+  }catch(e){console.error(e);toast('Could not open the sample: '+(e.message||e.code||e));showHome()}
 }
 async function importBackup(file){
   try{
@@ -1418,6 +1583,7 @@ async function flushNow(){if(S.proj&&(S.dirty.devs.size||S.dirty.del.size||S.dir
 /* ================= actions ================= */
 const ACT={
   goHome:()=>showHome(),
+  sample:()=>openSample(),
   newProject:()=>newProjectModal(false),
   open:(b,e)=>{if(e.target.closest('[data-act="delProject"]'))return;openProject(b.dataset.id)},
   delProject:async(b,e)=>{e.stopPropagation();if(await confirmBox('This deletes the project, its devices and circuits. This can’t be undone.')){try{await deleteProject(b.dataset.id);toast('Deleted')}catch(err){toast('Delete failed: '+(err.message||err.code))}showHome()}},
