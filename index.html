@@ -158,7 +158,7 @@ table.rt tr.click{cursor:pointer}
 .modal .mf{padding:10px 16px 14px;display:flex;justify-content:flex-end;gap:8px}
 .drop{border:2px dashed var(--line2);border-radius:10px;padding:22px;text-align:center;color:var(--ink2);cursor:pointer}
 .drop.over{border-color:var(--accent);background:var(--accent-weak)}
-#toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:8px;z-index:200;font-size:12.5px;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+#toast{display:flex;align-items:center;position:fixed;left:50%;top:60px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:8px;z-index:200;font-size:12.5px;box-shadow:0 6px 20px rgba(0,0,0,.2)}
 kbd{font:11px var(--sans);border:1px solid var(--line2);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff;color:var(--ink2)}
 
 @media (max-width:980px){
@@ -199,8 +199,10 @@ kbd{font:11px var(--sans);border:1px solid var(--line2);border-bottom-width:2px;
         <button data-act="csv" data-k="breakers">Breaker directory (.csv)</button>
         <button data-act="csv" data-k="smart">Smart home list (.csv)</button>
         <hr>
-        <button data-act="backup">Backup project (.json)</button>
-        <div class="hint">A backup includes the floorplan image and can be imported from the projects page.</div>
+        <button data-act="backup" data-k="full">Project file with floorplan (.json)</button>
+        <button data-act="backup" data-k="lite">Project file without image (.json, smaller)</button>
+        <button data-act="exportJson">Device data for other tools (.json)</button>
+        <div class="hint">Project files can be opened again with “Import project (.json)” on the projects page. A file without the image asks you for the floorplan when you import it.</div>
       </div>
     </div>
   </header>
@@ -264,7 +266,7 @@ const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slic
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone=o=>JSON.parse(JSON.stringify(o));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-let toastT; function toast(msg,ms=2600){const t=$('#toast');t.textContent=msg;t.classList.remove('hidden');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.add('hidden'),ms)}
+let toastT; function toast(msg,ms=2600,action){const t=$('#toast');t.textContent=msg;if(action){const b=document.createElement('button');b.textContent=action.label;b.style.cssText='margin-left:10px;border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;border-radius:5px;padding:2px 8px;cursor:pointer';b.onclick=()=>{t.classList.add('hidden');action.fn()};t.appendChild(b)}t.classList.remove('hidden');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.add('hidden'),ms)}
 const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
 
 /* ================= catalog ================= */
@@ -1346,13 +1348,26 @@ function csvFor(k){
   return csvOf([['panel','Panel'],['num','Breaker #'],['label','Label'],['amps','Amps'],['poles','Poles'],['btype','Breaker type'],['summary','Summary'],['devices','Devices']],rows);
 }
 function fileBase(){return (S.proj.name||'floorplan').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-').slice(0,60)||'floorplan'}
+const MIME={json:'application/json',csv:'text/csv',html:'text/html',png:'image/png',txt:'text/plain'};
+function browserDownload(name,data){
+  try{
+    const blob=data instanceof Blob?data:new Blob([data],{type:(MIME[name.split('.').pop()]||'application/octet-stream')+';charset=utf-8'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.rel='noopener';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),120000);return true;
+  }catch(e){return false}
+}
 async function saveFile(name,data,fallbackKind){
   const dl=S.caps.downloads;
   if(dl){try{await dl.save({filename:name,data});toast('Saved '+name);return}catch(e){if(e&&e.code==='declined')return;if(e&&e.code==='rate_limited'){toast('Another save is waiting for you to confirm.');return}console.warn(e)}}
-  // fallback
+  if(browserDownload(name,data)){toast('Downloading '+name,7000,{label:'Didn’t download?',fn:()=>showFallback(name,data,fallbackKind)});return}
+  return showFallback(name,data,fallbackKind);
+}
+async function showFallback(name,data,fallbackKind){
   if(fallbackKind==='image'){const url=typeof data==='string'?data:URL.createObjectURL(data);openModal(`<div class="mh">${esc(name)}</div><div class="mb"><div class="muted" style="margin-bottom:8px">Downloads aren’t available here. Right-click (or long-press) the image to save it.</div><img src="${url}" style="max-width:100%;border:1px solid var(--line)"></div><div class="mf"><button class="btn" data-act="closeModal">Close</button></div>`,true);return}
   const txt=typeof data==='string'?data:await data.text();
-  openModal(`<div class="mh">${esc(name)}</div><div class="mb"><div class="muted" style="margin-bottom:8px">Downloads aren’t available here. Copy the contents instead.</div><textarea id="fbText" style="width:100%;height:300px;font:12px ui-monospace,monospace">${esc(txt.length>2e6?txt.slice(0,2e6):txt)}</textarea></div><div class="mf"><button class="btn" data-act="copyFb">Copy</button><button class="btn" data-act="closeModal">Close</button></div>`,true);
+  S._fbText=txt;
+  const big=txt.length>2e6;
+  openModal(`<div class="mh">${esc(name)}</div><div class="mb"><div class="muted" style="margin-bottom:8px">Downloads aren’t available here. Copy the contents, paste them into a text editor and save as <b>${esc(name)}</b>.${big?` This file is ${(txt.length/1e6).toFixed(1)} MB, so the box shows only the start, but Copy copies all of it.${/\.json$/.test(name)?' For a smaller file, use “Project file without image”.':''}`:''}</div><textarea id="fbText" readonly style="width:100%;height:300px;font:12px ui-monospace,monospace">${esc(big?txt.slice(0,200000)+'\n…':txt)}</textarea></div><div class="mf"><button class="btn pri" data-act="copyFb">Copy all</button><button class="btn" data-act="closeModal">Close</button></div>`,true);
 }
 async function copyText(t){try{await navigator.clipboard.writeText(t);toast('Copied to clipboard')}catch(e){saveFile('copy.txt',t)}}
 
@@ -1444,12 +1459,35 @@ async function exportReport(){
     await saveFile(fileBase()+'-electrical-report.html',html);
   }catch(e){console.error(e);toast('Could not build report: '+(e.message||e))}
 }
-async function backup(){
-  toast('Preparing backup…',6000);
-  const image=await imgDataUrl().catch(()=>null);
-  const data=JSON.stringify({format:'emap-1',exported:new Date().toISOString(),proj:{...projDoc(),id:S.proj.id},devices:[...S.devs.values()],image});
+async function backup(kind='full'){
+  const full=kind!=='lite';
+  toast(full?'Preparing project file…':'Preparing file…',6000);
+  const image=full?await imgDataUrl().catch(()=>null):null;
+  const pd=projDoc();delete pd.thumb;
+  const data=JSON.stringify({format:'emap-1',app:'switchmap',exported:new Date().toISOString(),proj:{...pd,id:S.proj.id,imageSize:{w:S.imgW,h:S.imgH}},devices:[...S.devs.values()],image},null,full?0:2);
   $('#toast').classList.add('hidden');
-  await saveFile(fileBase()+'-backup.json',data);
+  await saveFile(fileBase()+(full?'-project.json':'-project-no-image.json'),data);
+}
+function exportJsonData(){
+  const tagOf=id=>S.devs.get(id)?.tag||null;
+  const cs=(S.proj.circuits||[]).slice().sort(cSort);
+  const devs=allDevsSorted();
+  const out={
+    format:'switchmap-data-1',exported:new Date().toISOString(),
+    project:{name:S.proj.name||'',address:S.proj.address||'',image:{width:S.imgW,height:S.imgH,units:'pixels'}},
+    floors:S.proj.floors.map(f=>({id:f.id,name:f.name,region:{x:f.x,y:f.y,width:f.w,height:f.h},deviceCount:devs.filter(d=>d.floor===f.id).length})),
+    circuits:cs.map(c=>({id:c.id,panel:c.panel||'Main',number:c.num,label:c.label||'',amps:+c.amps||null,poles:+c.poles||1,breakerType:c.btype||'Standard',notes:c.notes||'',
+      summary:autoSummary(devs.filter(d=>d.circuit===c.id)),devices:devs.filter(d=>d.circuit===c.id).map(d=>d.tag)})),
+    devices:devs.map(d=>{const t=TYPES[d.type],p=d.p||{};const o={tag:d.tag,id:d.id,category:t.cat,type:d.type,description:typeLabel(d),label:d.label||'',floor:floorName(d.floor),room:d.room||'',status:d.status,
+      circuit:d.circuit?{id:d.circuit,name:circuitName(d.circuit)}:null,position:{x:d.x,y:d.y},details:detailText(d),properties:{...p}};
+      if(isSwitch(d)){o.switchConfig=p.config;o.switchKind=p.kind;o.controls=(d.controls||[]).map(tagOf).filter(Boolean)}
+      else o.controlledBy=controllersOf(d.id).map(s=>s.tag);
+      if(t.cat==='recep'){o.switched=p.controlled||'none';o.gfciProtection=d.protectedBy==='breaker'?'GFCI breaker':(d.protectedBy?tagOf(d.protectedBy):(['gfci','afgf'].includes(d.type)?'self':null))}
+      o.smart=d.smart?.on?{role:d.smart.role||'',brand:d.smart.brand||'',model:d.smart.model||'',protocol:d.smart.protocol||'',hub:d.smart.hub||'',scenes:(d.smart.scenes||'').split(',').map(x=>x.trim()).filter(Boolean),neutral:d.smart.neutral||'unknown'}:null;
+      o.notes=d.notes||'';return o}),
+    checks:analyze().map(i=>({level:i.lv,device:tagOf(i.id),message:i.msg}))
+  };
+  return JSON.stringify(out,null,2);
 }
 
 /* ================= modal ================= */
@@ -1480,7 +1518,7 @@ async function showHome(){
     <div class="card" data-act="sample"><div class="thumb" style="background-image:url(&quot;${sampleThumb}&quot;)"></div><div class="meta"><b>Sample house: new copy</b><span>2 floors · ${sampleData().devices.length} devices · try it out${S.canWrite?'':' (not saved)'}</span></div></div>
     ${list.map(p=>`<div class="card" data-act="open" data-id="${esc(p.id)}"><div class="thumb" style="${p.thumb?`background-image:url('${esc(p.thumb)}')`:''}"></div><div class="meta"><b>${esc(p.name||'Untitled')}</b><span>${(p.floors||[]).length} floor${(p.floors||[]).length===1?'':'s'} · ${p.deviceCount||0} devices${p.updatedAt?' · '+new Date(p.updatedAt).toLocaleDateString():''}</span>
       ${S.canWrite?`<div style="margin-top:6px"><button class="btn sm danger" data-act="delProject" data-id="${esc(p.id)}">Delete</button></div>`:''}</div></div>`).join('')}</div>
-    ${S.canWrite?`<p style="margin-top:20px"><label class="btn" style="cursor:pointer">Import backup (.json)<input type="file" accept=".json,application/json" id="importFile" class="hidden"></label></p>`:''}</div>`;
+    ${S.canWrite?`<p style="margin-top:20px"><label class="btn" style="cursor:pointer">Import project (.json)<input type="file" accept=".json,application/json" id="importFile" class="hidden"></label></p>`:''}</div>`;
   const imp=$('#importFile');if(imp)imp.onchange=e=>{const f=e.target.files[0];if(f)importBackup(f)};
 }
 function newProjectModal(replace){
@@ -1516,7 +1554,9 @@ async function createProject(name,file,extra){
   let thumb='';if(r.image.kind!=='asset'){try{thumb=(await downscale(await loadImg(r.imgUrl),320,.7)).url}catch(e){}}
   S.proj={id,name,address:'',image:r.image,floors:[],circuits:[],settings:{sym:1},createdAt:Date.now(),thumb};
   S.devs=new Map();S.imgUrl=r.imgUrl;S.imgData=r.imgData;S.imgW=r.image.w;S.imgH=r.image.h;S.undo=[];S.redo=[];
-  if(extra){Object.assign(S.proj,extra.proj||{});(extra.devices||[]).forEach(d=>S.devs.set(d.id,d))}
+  if(extra){Object.assign(S.proj,extra.proj||{});(extra.devices||[]).forEach(d=>S.devs.set(d.id,normDev(d)))
+    const ow=extra.imageSize&&extra.imageSize.w;
+    if(ow&&Math.abs(ow-r.image.w)>1){const f=r.image.w/ow;S.devs.forEach(d=>{d.x=Math.round(d.x*f);d.y=Math.round(d.y*f)});(S.proj.floors||[]).forEach(fl=>{fl.x=Math.round(fl.x*f);fl.y=Math.round(fl.y*f);fl.w=Math.round(fl.w*f);fl.h=Math.round(fl.h*f)})}}
   S.proj.id=id;S.proj.image=r.image;S.proj.thumb=thumb;
   S.dirty.proj=true;S.devs.forEach((d,i)=>S.dirty.devs.add(i));
   await flush();
@@ -1681,13 +1721,24 @@ async function openSample(){
     if(S._saved)toast('Sample opened for testing. Changes aren’t saved.',5000);
   }catch(e){console.error(e);toast('Could not open the sample: '+(e.message||e.code||e));showHome()}
 }
+function askImage(o){
+  return new Promise(res=>{
+    const sz=o.proj?.imageSize;
+    const m=openModal(`<div class="mh">Choose the floorplan image</div><div class="mb"><div class="note">“${esc(o.proj?.name||'This project')}” was saved without its image. Choose the same floorplan image it was mapped on${sz?` (${sz.w} × ${sz.h} px)`:''} so devices land in the right places.</div><div class="drop" id="aiDrop">Click to choose an image<input type="file" accept="image/*" id="aiFile" class="hidden"></div></div><div class="mf"><button class="btn" id="aiCancel">Cancel</button></div>`);
+    const inp=m.querySelector('#aiFile');m.querySelector('#aiDrop').onclick=()=>inp.click();
+    inp.onchange=()=>{const f=inp.files[0];closeModal();res(f||null)};
+    m.querySelector('#aiCancel').onclick=()=>{closeModal();res(null)};
+  });
+}
 async function importBackup(file){
   try{
-    const o=JSON.parse(await file.text());if(o.format!=='emap-1')throw new Error('Not a backup from this app');
+    const o=JSON.parse(await file.text());
+    if(o.format==='switchmap-data-1')throw new Error('That’s a device data export for other tools. Import a “Project file” instead.');
+    if(o.format!=='emap-1')throw new Error('Not a project file from this app');
     let imgFile=null;if(o.image){const b=await (await fetch(o.image)).blob();imgFile=new File([b],'plan.jpg',{type:b.type||'image/jpeg'})}
-    if(!imgFile)throw new Error('Backup has no image');
+    if(!imgFile){imgFile=await askImage(o);if(!imgFile)return}
     toast('Importing…',6000);
-    await createProject((o.proj.name||'Imported')+' (imported)',imgFile,{proj:{address:o.proj.address,floors:o.proj.floors,circuits:o.proj.circuits,settings:o.proj.settings},devices:o.devices});
+    await createProject((o.proj.name||'Imported')+' (imported)',imgFile,{proj:{address:o.proj.address,floors:o.proj.floors,circuits:o.proj.circuits,settings:o.proj.settings},devices:o.devices,imageSize:o.proj.imageSize||(o.proj.image&&o.proj.image.w?{w:o.proj.image.w,h:o.proj.image.h}:null)});
   }catch(e){toast('Import failed: '+(e.message||e))}
 }
 async function openProject(id){
@@ -1732,7 +1783,7 @@ const ACT={
   open:(b,e)=>{if(e.target.closest('[data-act="delProject"]'))return;openProject(b.dataset.id)},
   delProject:async(b,e)=>{e.stopPropagation();if(await confirmBox('This deletes the project, its devices and circuits. This can’t be undone.')){try{await deleteProject(b.dataset.id);toast('Deleted')}catch(err){toast('Delete failed: '+(err.message||err.code))}showHome()}},
   closeModal:()=>closeModal(),
-  copyFb:()=>{const t=$('#fbText');t.select();copyText(t.value)},
+  copyFb:async()=>{const t=$('#fbText');try{await navigator.clipboard.writeText(S._fbText||t.value);toast('Copied to clipboard')}catch(e){t.select();toast('Press Ctrl+C (⌘C) to copy the selected text')}},
   page:(b)=>{S.page=b.dataset.p;$$('#viewTabs button').forEach(x=>x.classList.toggle('on',x===b));const plan=S.page==='plan';$('#planView').classList.toggle('hidden',!plan);$('#reportView').classList.toggle('hidden',plan);if(plan){requestAnimationFrame(()=>{fit();renderStage()})}else renderReport()},
   toggleMenu:(b)=>{b.nextElementSibling.classList.toggle('hidden')},
   mode:(b)=>setMode(b.dataset.m),
@@ -1771,7 +1822,8 @@ const ACT={
   copyCsv:(b)=>copyText(csvFor(b.dataset.k)),
   copyDir:()=>{const {groups}=breakerData();copyText(groups.map(({c,devs})=>`${c.panel&&c.panel!=='Main'?c.panel+' ':''}${c.num}\t${c.label||autoSummary(devs)}`).join('\n'))},
   exportDir:()=>saveFile(fileBase()+'-panel-directory.html',dirHtml()),
-  backup:()=>{closeMenus();backup()},
+  backup:(b)=>{closeMenus();backup(b.dataset.k)},
+  exportJson:()=>{closeMenus();saveFile(fileBase()+'-devices.json',exportJsonData())},
   sort:(b)=>{const k=b.dataset.k;S.sort={k,d:S.sort.k===k?-S.sort.d:1};renderReport()}
 };
 function closeMenus(){$$('.menu .dd').forEach(d=>d.classList.add('hidden'))}

@@ -14,11 +14,16 @@ A single-file browser app for mapping electrical receptacles, switches, lights a
 - **Test mode** dims the house so you can flip switches and see which lights glow, which fans spin and which outlets have power. 3-way and 4-way groups toggle from any location, and dimmers and fan speeds have sliders. Timers and occupancy sensors switch themselves off after a few seconds. Turning breakers off shows what loses power. Switch groups that aren't set up correctly are tested as series wiring and flagged. Nothing in test mode changes the project.
 - **Checks** flags switch configurations that don't match the number of control locations, switched receptacles with no switch, and wet-location receptacles with no GFCI. These are planning hints, not code compliance.
 - Colour the plan by type, status, circuit or smart; adjust symbol size; undo and redo.
-- Outputs: annotated plan PNG (one floor or all floors), device schedule CSV, breaker directory (CSV and a printable panel card), smart home list CSV, a full printable HTML report, and a JSON backup that can be imported again.
+- Outputs: annotated plan PNG (one floor or all floors), device schedule CSV, breaker directory (CSV and a printable panel card), smart home list CSV, a full printable HTML report, and three JSON exports:
+  - **Project file with floorplan**: a complete backup you can import again on any device.
+  - **Project file without image**: much smaller. When you import it, you're asked for the floorplan image, and positions are rescaled if the image size differs.
+  - **Device data for other tools**: readable JSON listing floors, circuits (with summaries), every device (type, room, status, circuit, position, switch configuration, controls / controlled by, GFCI protection, smart details) and the current checks.
+
+  Downloads use the Claude download prompt when the app is hosted as an artifact, and a normal browser download anywhere else. If neither works, a copy-to-clipboard fallback appears.
 
 ## Running
 
-Open `index.html` in a browser. Outside the Claude artifact host, projects are saved to the browser's localStorage. Use **Export → Backup** to keep a portable copy.
+Open `index.html` in a browser. Outside the Claude artifact host, projects are saved to the browser's localStorage. Use **Export → Project file** to keep a portable copy.
 
 When it's hosted as a Claude artifact, the page uses the platform's `db`, `assets`, `downloads` and `user` capabilities to sync projects to your account. It falls back to local storage when those capabilities aren't available.
 
